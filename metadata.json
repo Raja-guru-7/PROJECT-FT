@@ -1,8 +1,0 @@
-{
-  "name": "AroundU - FT",
-  "description": "A secure hyper-local peer-to-peer rental platform emphasizing trust through live video verification, OTP handovers, and escrow logic.",
-  "requestFramePermissions": [
-    "camera",
-    "geolocation"
-  ]
-}
