@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -13,7 +12,8 @@ import {
   UserCircle,
   Repeat
 } from 'lucide-react';
-import { MOCK_CURRENT_USER } from '../mockData';
+import { api } from '../services/api';
+import { User } from '../types';
 
 interface NavbarProps {
   userRole: 'RENTER' | 'OWNER';
@@ -25,9 +25,23 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  // Fetch real user on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await api.getCurrentUser();
+        setCurrentUser(user);
+      } catch {
+        console.error('Failed to fetch user');
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -41,6 +55,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
 
   const handleLogout = () => {
     setIsProfileOpen(false);
+    api.logout();
     onLogout();
     navigate('/');
   };
@@ -53,6 +68,13 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
       navigate(path);
     }
   };
+
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const avatarUrl = `https://ui-avatars.com/api/?name=${currentUser?.name || 'U'}&background=093E28&color=fff&size=128&bold=true`;
 
   return (
     <>
@@ -69,7 +91,9 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
 
           <div className="flex items-center gap-3 sm:gap-6 relative" ref={dropdownRef}>
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm font-black text-slate-900">{MOCK_CURRENT_USER.name}</span>
+              <span className="text-sm font-black text-slate-900">
+                {currentUser ? getInitials(currentUser.name) : '...'}
+              </span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userRole} MODE</span>
             </div>
             
@@ -79,7 +103,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
             >
               <div className="relative">
                 <img 
-                  src={MOCK_CURRENT_USER.avatar} 
+                  src={avatarUrl}
                   alt="Profile" 
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-transparent group-hover:border-[#093E28]/20 transition-all" 
                 />
@@ -90,10 +114,10 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
             {isProfileOpen && (
               <div className="absolute top-16 sm:top-20 right-0 w-64 bg-white border border-gray-100 rounded-[2rem] shadow-2xl p-3 animate-in fade-in slide-in-from-top-4 duration-200 z-[2001]">
                 <div className="p-4 mb-2 border-b border-gray-50 flex items-center gap-3">
-                  <img src={MOCK_CURRENT_USER.avatar} alt="Profile" className="w-12 h-12 rounded-full" />
+                  <img src={avatarUrl} alt="Profile" className="w-12 h-12 rounded-full" />
                   <div>
-                    <p className="text-sm font-black text-slate-800">{MOCK_CURRENT_USER.name}</p>
-                    <p className="text-xs font-bold text-green-600">{MOCK_CURRENT_USER.trustScore}% Trust Score</p>
+                    <p className="text-sm font-black text-slate-800">{currentUser?.name || 'Loading...'}</p>
+                    <p className="text-xs font-bold text-green-600">{currentUser?.trustScore || 30} Trust Score</p>
                   </div>
                 </div>
 
@@ -101,7 +125,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
                   <ProfileMenuItem icon={<UserCircle size={18} />} label="My Profile" onClick={() => handleMenuAction('/profile')} />
                   <ProfileMenuItem icon={<Heart size={18} />} label="Saved Assets" onClick={() => handleMenuAction('/saved')} />
                   <ProfileMenuItem icon={<History size={18} />} label="Activity Log" onClick={() => handleMenuAction('/activity')} />
-                   <ProfileMenuItem icon={<Settings size={18} />} label="Settings" onClick={() => handleMenuAction('/settings')} />
+                  <ProfileMenuItem icon={<Settings size={18} />} label="Settings" onClick={() => handleMenuAction('/settings')} />
                   <div className="h-px bg-gray-50 my-2" />
                   <ProfileMenuItem icon={<Repeat size={18} />} label="Switch Mode" onClick={() => handleMenuAction('/switch')} subLabel={userRole === 'RENTER' ? 'to Owner' : 'to Renter'} />
                   <ProfileMenuItem icon={<LogOut size={18} />} label="Log Out" variant="danger" onClick={handleLogout} />

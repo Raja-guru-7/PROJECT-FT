@@ -5,12 +5,19 @@ require("dotenv").config();
 
 const app = express();
 
-app.use(express.json());
-app.use(cors());
-// Routes
-app.use("/api/auth", require("./routes/auth")); // Use lowercase 'routes' to match your folder
+// CORS - Allow frontend
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
+}));
 
+app.use(express.json());
+
+// Routes
+app.use("/api/auth", require("./routes/auth"));
 app.use("/api/product", require("./routes/product"));
+app.use("/api/transaction", require("./routes/transaction"));
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
 .then(() => {

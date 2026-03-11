@@ -1,11 +1,39 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, ArrowRight } from 'lucide-react';
-import { MOCK_CURRENT_USER } from '../mockData';
+import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, ArrowRight, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
+import { User } from '../types';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const data = await api.getCurrentUser();
+        setUser(data);
+      } catch (err) {
+        console.error('Failed to fetch user');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="animate-spin text-[#093E28]" size={40} />
+    </div>
+  );
+
+  if (!user) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <p className="text-slate-500 font-bold">Failed to load profile</p>
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
@@ -21,26 +49,37 @@ const Profile: React.FC = () => {
       <div className="bg-white rounded-3xl soft-shadow p-8 sm:p-12 mb-10">
         <div className="flex flex-col md:flex-row items-center gap-8">
           <div className="relative">
-            <img src={MOCK_CURRENT_USER.avatar} alt="Profile" className="w-32 h-32 rounded-full ring-4 ring-white shadow-lg"/>
+            <img 
+              src={`https://ui-avatars.com/api/?name=${user.name}&background=093E28&color=fff&size=128`} 
+              alt="Profile" 
+              className="w-32 h-32 rounded-full ring-4 ring-white shadow-lg object-cover"
+            />
             <div className="absolute -bottom-1 -right-1 bg-green-500 text-white p-2 rounded-full border-4 border-white">
               <ShieldCheck size={20} />
             </div>
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 mb-2">{MOCK_CURRENT_USER.name}</h1>
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 mb-2">{user.name}</h1>
             <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 text-slate-600 font-semibold">
               <div className="flex items-center gap-2">
                 <Star size={16} className="text-amber-500" />
-                <span>{MOCK_CURRENT_USER.trustScore}% Trust Score</span>
+                <span>{user.trustScore} Trust Score</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users size={16} className="text-blue-500" />
-                <span>42 Handovers</span>
+                <span>0 Handovers</span>
               </div>
               <div className="flex items-center gap-2">
                 <Award size={16} className="text-orange-500" />
-                <span>Master Handler Badge</span>
+                <span>{user.trustScore >= 80 ? 'Master Handler' : user.trustScore >= 50 ? 'Trusted User' : 'New Member'} Badge</span>
               </div>
+            </div>
+            <div className="mt-3">
+              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                user.kycStatus === 'verified' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+              }`}>
+                {user.kycStatus === 'verified' ? '✅ KYC Verified' : '⏳ KYC Pending'}
+              </span>
             </div>
           </div>
         </div>
@@ -50,28 +89,19 @@ const Profile: React.FC = () => {
         <section>
           <h2 className="text-2xl font-bold text-slate-800 mb-6">Reputation Feed</h2>
           <div className="space-y-6">
-            <ReviewCard 
-              name="Marcus Chen" 
-              comment="Extremely careful with my Sony A7III. Returned it cleaner than it was! Highly recommended."
-              item="Sony A7III Camera"
-            />
-            <ReviewCard 
-              name="Sarah Miller" 
-              comment="Punctual and followed all protocol steps perfectly. The video verification was smooth."
-              item="Heavy Duty Drill"
-            />
+            <div className="bg-white p-6 rounded-2xl soft-shadow text-center text-slate-400 font-semibold">
+              No reviews yet — complete your first transaction!
+            </div>
           </div>
         </section>
 
         <section>
           <h2 className="text-2xl font-bold text-slate-800 mb-6">Operational History</h2>
           <div className="bg-white rounded-3xl soft-shadow p-8">
-            <div className="space-y-6">
-              <HistoryItem label="Nintendo Switch OLED" date="2 days ago" />
-              <HistoryItem label="Professional Steam Cleaner" date="1 week ago" />
-              <HistoryItem label="Camping Tent (4-Person)" date="Oct 12, 2023" />
+            <div className="text-center text-slate-400 font-semibold py-4">
+              No transactions yet
             </div>
-            <button className="w-full mt-8 text-sm font-bold text-slate-500 hover:text-slate-800 py-3 rounded-lg hover:bg-gray-100 transition-all">
+            <button className="w-full mt-4 text-sm font-bold text-slate-500 hover:text-slate-800 py-3 rounded-lg hover:bg-gray-100 transition-all">
               View Full History
             </button>
           </div>
@@ -81,9 +111,9 @@ const Profile: React.FC = () => {
       <div className="mt-16">
         <h2 className="text-2xl font-bold text-slate-800 mb-6">Verified Credentials</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <CredentialCard label="Government ID" date="Verified Oct 2023" />
-          <CredentialCard label="Liveness Check" date="Passed" />
-          <CredentialCard label="Mobile Number" date="Verified" />
+          <CredentialCard label="Government ID" date={user.kycStatus === 'verified' ? 'Verified' : 'Pending'} />
+          <CredentialCard label="Liveness Check" date={user.isVerified ? 'Passed' : 'Pending'} />
+          <CredentialCard label="Mobile Number" date="Pending" />
         </div>
       </div>
     </div>
@@ -97,19 +127,6 @@ const CredentialCard = ({ label, date }: { label: string, date: string }) => (
     </div>
     <h3 className="font-bold text-slate-800">{label}</h3>
     <p className="text-sm text-slate-500">{date}</p>
-  </div>
-);
-
-const ReviewCard = ({ name, comment, item }: { name: string, comment: string, item: string }) => (
-  <div className="bg-white p-6 rounded-2xl soft-shadow">
-    <div className="flex items-center gap-3 mb-4">
-      <img src={`https://picsum.photos/seed/${name}/100`} className="w-10 h-10 rounded-full" alt="" />
-      <div>
-        <p className="font-bold text-slate-800">{name}</p>
-        <p className="text-xs text-slate-500 font-semibold">{item}</p>
-      </div>
-    </div>
-    <p className="text-sm text-slate-600">"{comment}"</p>
   </div>
 );
 

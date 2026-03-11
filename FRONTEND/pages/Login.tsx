@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, ShieldCheck, Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
@@ -32,15 +31,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     setIsLoading(true);
 
-    // Simulate sending OTP
-    await new Promise(r => setTimeout(r, 1500));
-    
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(newOtp);
-    console.log(`[DEV] OTP for ${formData.email}: ${newOtp}`);
-    
-    setIsLoading(false);
-    setShowOtp(true);
+    try {
+      // Real backend call — wrong password throws error here
+      const { api } = await import('../services/api');
+      await api.login({ email: formData.email, password: formData.password });
+
+      // Only reaches here if backend says LOGIN SUCCESS
+      const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(newOtp);
+      console.log(`[DEV] OTP for ${formData.email}: ${newOtp}`);
+      setShowOtp(true);
+    } catch (err: any) {
+      setError('Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -54,7 +59,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     setIsVerifying(true);
 
-    // Simulate verification delay
     await new Promise(r => setTimeout(r, 1000));
 
     if (otp === generatedOtp) {

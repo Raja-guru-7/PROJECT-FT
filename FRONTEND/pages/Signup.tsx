@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, CreditCard, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
@@ -15,6 +14,7 @@ const Signup: React.FC = () => {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
@@ -46,8 +46,10 @@ const Signup: React.FC = () => {
     setIsVerified(true);
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     if (!isVerified) {
       setError('Please verify your Aadhaar first');
       return;
@@ -56,9 +58,26 @@ const Signup: React.FC = () => {
       setError('You must agree to the Terms & Conditions');
       return;
     }
-    
-    // Simulate signup success
-    navigate('/login');
+    if (!formData.name || !formData.email || !formData.password) {
+      setError('Please fill all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { api } = await import('../services/api');
+      await api.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+      showToast('Registered Successfully!');
+      setTimeout(() => navigate('/login'), 1000);
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -90,7 +109,7 @@ const Signup: React.FC = () => {
             label="Full Name" 
             placeholder="Siva Kumar" 
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
           />
           
           <InputField 
@@ -99,7 +118,7 @@ const Signup: React.FC = () => {
             type="email"
             placeholder="siva@example.com" 
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
           />
 
           <InputField 
@@ -108,7 +127,7 @@ const Signup: React.FC = () => {
             type="password"
             placeholder="••••••••" 
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
           />
 
           {/* Aadhaar Section */}
@@ -183,10 +202,10 @@ const Signup: React.FC = () => {
 
           <button 
             type="submit"
-            disabled={!isVerified}
+            disabled={!isVerified || isLoading}
             className="w-full bg-[#093E28] text-white py-4 rounded-full font-bold text-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100 disabled:opacity-50"
           >
-            Register <ArrowRight size={20} />
+            {isLoading ? <Loader2 className="animate-spin" size={24} /> : <>Register <ArrowRight size={20} /></>}
           </button>
         </form>
 
