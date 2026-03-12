@@ -36,31 +36,31 @@ const Profile: React.FC = () => {
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
       <button 
         type="button"
         onClick={() => navigate(-1)} 
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8 group"
+        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-6 sm:mb-8 group"
       >
         <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
         Back
       </button>
 
-      <div className="bg-white rounded-3xl soft-shadow p-8 sm:p-12 mb-10">
-        <div className="flex flex-col md:flex-row items-center gap-8">
+      <div className="bg-white rounded-3xl soft-shadow p-6 sm:p-8 lg:p-12 mb-8 sm:mb-10">
+        <div className="flex flex-col md:flex-row items-center gap-6 sm:gap-8">
           <div className="relative">
             <img 
               src={`https://ui-avatars.com/api/?name=${user.name}&background=093E28&color=fff&size=128`} 
               alt="Profile" 
-              className="w-32 h-32 rounded-full ring-4 ring-white shadow-lg object-cover"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full ring-4 ring-white shadow-lg object-cover"
             />
-            <div className="absolute -bottom-1 -right-1 bg-green-500 text-white p-2 rounded-full border-4 border-white">
-              <ShieldCheck size={20} />
-            </div>
+            <div className="absolute -bottom-1 -right-1 bg-green-500 text-white p-1 rounded-full border-2 border-white">
+  <ShieldCheck size={14} />
+</div>
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 mb-2">{user.name}</h1>
-            <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 text-slate-600 font-semibold">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-slate-900 mb-2">{user.name}</h1>
+            <div className="flex flex-wrap justify-center md:justify-start items-center gap-3 sm:gap-4 text-slate-600 font-semibold text-sm sm:text-base">
               <div className="flex items-center gap-2">
                 <Star size={16} className="text-amber-500" />
                 <span>{user.trustScore} Trust Score</span>
@@ -85,9 +85,9 @@ const Profile: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10">
         <section>
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">Reputation Feed</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-4 sm:mb-6">Reputation Feed</h2>
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl soft-shadow text-center text-slate-400 font-semibold">
               No reviews yet — complete your first transaction!
@@ -96,21 +96,19 @@ const Profile: React.FC = () => {
         </section>
 
         <section>
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">Operational History</h2>
-          <div className="bg-white rounded-3xl soft-shadow p-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-4 sm:mb-6">Operational History</h2>
+          <div className="bg-white rounded-3xl soft-shadow p-6 sm:p-8">
             <div className="text-center text-slate-400 font-semibold py-4">
               No transactions yet
             </div>
-            <button className="w-full mt-4 text-sm font-bold text-slate-500 hover:text-slate-800 py-3 rounded-lg hover:bg-gray-100 transition-all">
-              View Full History
-            </button>
+            <button className="w-full mt-2 sm:mt-4 text-sm font-bold text-slate-500 hover:text-slate-800 py-2 sm:py-3 rounded-lg hover:bg-gray-100 transition-all">View Full History</button>
           </div>
         </section>
       </div>
 
-      <div className="mt-16">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">Verified Credentials</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="mt-12 sm:mt-16">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-4 sm:mb-6">Verified Credentials</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
           <CredentialCard label="Government ID" date={user.kycStatus === 'verified' ? 'Verified' : 'Pending'} />
           <CredentialCard label="Liveness Check" date={user.isVerified ? 'Passed' : 'Pending'} />
           <CredentialCard label="Mobile Number" date="Pending" />

@@ -11,7 +11,7 @@ export interface User {
   avatar: string;
   trustScore: number;
   isVerified: boolean;
-  kycStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  kycStatus: String;
   location: { lat: number; lng: number };
 }
 

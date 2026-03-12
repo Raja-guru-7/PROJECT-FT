@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, RefreshCcw, CheckCircle2, Video, ShieldAlert } from 'lucide-react';
 
@@ -16,18 +15,23 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  // Fix: when stream changes, attach to video element
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(err => console.error('Video play error:', err));
+    }
+  }, [stream]);
+
   const startCamera = async () => {
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' }, 
-        audio: mode === 'video' 
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: mode === 'video'
       });
       setStream(s);
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
-      }
     } catch (err) {
-      console.error("Camera access denied", err);
+      console.error('Camera access denied', err);
     }
   };
 
@@ -85,17 +89,17 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
     <div className="w-full bg-slate-100 rounded-[2.5rem] overflow-hidden aspect-[4/3] relative flex flex-col items-center justify-center border-8 border-white floating-3d shadow-inner">
       {!stream && !capturedBlob ? (
         <div className="flex flex-col items-center text-center p-8">
-           <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl flex items-center justify-center mb-6 text-blue-600 animate-bounce">
-             <Camera size={40} />
-           </div>
-           <h3 className="text-xl font-extrabold text-slate-900 mb-2">{label}</h3>
-           <p className="text-sm text-slate-500 font-medium mb-8 max-w-[200px]">We'll record a live proof for community safety.</p>
-           <button 
-             onClick={startCamera}
-             className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-sm hover:bg-slate-800 transition-all active:scale-95"
-           >
-             Activate Camera
-           </button>
+          <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl flex items-center justify-center mb-6 text-blue-600 animate-bounce">
+            <Camera size={40} />
+          </div>
+          <h3 className="text-xl font-extrabold text-slate-900 mb-2">{label}</h3>
+          <p className="text-sm text-slate-500 font-medium mb-8 max-w-[200px]">We'll record a live proof for community safety.</p>
+          <button
+            onClick={startCamera}
+            className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-sm hover:bg-slate-800 transition-all active:scale-95"
+          >
+            Activate Camera
+          </button>
         </div>
       ) : capturedBlob ? (
         <div className="flex flex-col items-center text-center p-8 bg-green-50/50 w-full h-full justify-center animate-in fade-in zoom-in duration-500">
@@ -104,44 +108,44 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
           </div>
           <h2 className="text-2xl font-black text-slate-900 mb-2">Verified Successfully</h2>
           <p className="text-sm text-green-700 font-bold uppercase tracking-widest mb-10">Encrypted Proof Captured</p>
-          <button 
+          <button
             onClick={() => { setCapturedBlob(null); startCamera(); }}
             className="flex items-center gap-2 text-slate-400 hover:text-slate-900 font-black text-xs uppercase transition-all"
           >
-            <RefreshCcw size={14} /> Restart Handover
+            <RefreshCcw size={14} /> Restart
           </button>
         </div>
       ) : (
         <div className="w-full h-full relative group">
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            muted 
-            playsInline 
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700" 
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
-          
+
           <div className="absolute top-8 left-8 flex items-center gap-3">
-             <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xl">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Live Secure Feed</span>
-             </div>
+            <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xl">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Live Secure Feed</span>
+            </div>
           </div>
 
           <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center gap-8">
             <button className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-all">
-               <ShieldAlert size={20} />
+              <ShieldAlert size={20} />
             </button>
             {mode === 'photo' ? (
-              <button 
+              <button
                 onClick={takePhoto}
                 className="w-20 h-20 rounded-full border-[6px] border-white/50 bg-white shadow-2xl hover:scale-110 active:scale-90 transition-all flex items-center justify-center"
               >
-                 <div className="w-14 h-14 rounded-full bg-red-500" />
+                <div className="w-14 h-14 rounded-full bg-red-500" />
               </button>
             ) : (
-              <button 
+              <button
                 onClick={isRecording ? stopRecording : startRecording}
                 className={`w-20 h-20 rounded-full border-[6px] border-white/50 shadow-2xl hover:scale-110 active:scale-90 transition-all flex items-center justify-center ${isRecording ? 'bg-white' : 'bg-red-500'}`}
               >
@@ -149,7 +153,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
               </button>
             )}
             <button onClick={stopCamera} className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-all">
-               <RefreshCcw size={20} />
+              <RefreshCcw size={20} />
             </button>
           </div>
         </div>

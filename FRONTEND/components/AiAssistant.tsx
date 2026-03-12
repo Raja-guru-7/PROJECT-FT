@@ -55,7 +55,7 @@ const AiAssistant: React.FC = () => {
     <div className="fixed bottom-24 right-6 sm:right-10 z-[2000] pointer-events-none">
       <div className="flex flex-col items-end gap-4 pointer-events-auto">
         {isOpen && (
-          <div className="w-[320px] sm:w-[400px] h-[500px] bg-[#0a0c12] border border-white/10 rounded-[2.5rem] shadow-[0_30px_90px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300 backdrop-blur-3xl">
+          <div className={`w-72 sm:w-80 md:w-[400px] h-[500px] sm:h-[550px] bg-[#0a0c12] border border-white/10 rounded-[2.5rem] sm:rounded-[3rem] shadow-[0_30px_90px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300 backdrop-blur-3xl ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}>
             {/* Header */}
             <div className="bg-[#A84bc9] p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -63,10 +63,10 @@ const AiAssistant: React.FC = () => {
                   <Sparkles className="text-white" size={18} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white italic">Smart Concierge</h3>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-white italic">Smart Concierge</h3>
+                  <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Neural Link Active</span>
+                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-white/60">Neural Link Active</span>
                   </div>
                 </div>
               </div>
@@ -76,10 +76,10 @@ const AiAssistant: React.FC = () => {
             </div>
 
             {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 scroll-smooth">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4 scroll-smooth">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wide leading-relaxed ${
+                  <div className={`max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-[11px] sm:text-[11px] font-bold uppercase tracking-wide leading-relaxed ${
                     m.role === 'user' 
                       ? 'bg-white text-black rounded-tr-none' 
                       : 'bg-white/5 text-white/80 border border-white/5 rounded-tl-none'
@@ -106,13 +106,13 @@ const AiAssistant: React.FC = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask the protocol..."
-                  className="w-full bg-[#06070a] border border-white/10 rounded-xl py-4 pl-4 pr-14 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[#A84bc9] transition-all"
+                  placeholder="Ask protocol..."
+                  className="w-full bg-[#06070a] border border-white/10 rounded-xl py-3 sm:py-4 pl-4 sm:pl-14 text-[10px] sm:text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[#A84bc9] transition-all"
                 />
                 <button 
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-[#A84bc9] text-white rounded-lg flex items-center justify-center disabled:opacity-20 hover:brightness-110 transition-all"
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-[#A84bc9] text-white rounded-lg flex items-center justify-center disabled:opacity-20 hover:brightness-110 transition-all"
                 >
                   <Send size={16} />
                 </button>
@@ -124,14 +124,14 @@ const AiAssistant: React.FC = () => {
         {/* Toggle Button */}
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-16 h-16 rounded-[1.8rem] flex items-center justify-center shadow-[0_20px_50px_rgba(168,75,201,0.4)] transition-all active:scale-90 border border-white/20 ${
+          className={`w-12 h-12 sm:w-16 sm:h-16 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center shadow-[0_20px_50px_rgba(168,75,201,0.4)] transition-all active:scale-90 border border-white/20 ${
             isOpen ? 'bg-white text-black rotate-90' : 'bg-[#A84bc9] text-white'
           }`}
         >
           {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
-          {!isOpen && (
+          {isOpen && (
             <div className="absolute -top-1 -right-1 w-5 h-5 bg-white text-[#A84bc9] rounded-full flex items-center justify-center shadow-lg border-2 border-[#A84bc9] animate-bounce">
-              <Sparkles size={12} fill="currentColor" />
+              <Sparkles size={12} className="sm:size-14" fill="currentColor" />
             </div>
           )}
         </button>

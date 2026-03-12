@@ -6,7 +6,7 @@ const ProductSchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
-  name: {
+  title: {
     type: String,
     required: true
   },
@@ -15,21 +15,46 @@ const ProductSchema = new mongoose.Schema({
     required: true
   },
   category: {
-    type: String, // e.g., Electronics, Tools, Books
+    type: String,
     required: true
   },
   pricePerDay: {
     type: Number,
     required: true
   },
+  insuranceDeposit: {
+    type: Number,
+    default: 10
+  },
   isAvailable: {
     type: Boolean,
     default: true
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  imageUrl: {
+    type: String,
+    default: ''
+  },
+  videoUrl: {
+    type: String,
+    default: ''
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [77.7172, 11.3410]
+    },
+    address: {
+      type: String,
+      default: ''
+    }
   }
-});
+}, { timestamps: true });
+
+ProductSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model("Product", ProductSchema);

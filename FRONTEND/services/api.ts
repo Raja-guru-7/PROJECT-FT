@@ -85,23 +85,25 @@ class ApiService {
       if (!res.ok) throw new Error(json.msg);
       return json.map((p: any) => ({
         id: p._id,
+        owner: p.owner?._id || p.owner,           // ✅ for ItemDetail ownerId fix
         ownerId: p.owner?._id || p.owner,
         ownerName: p.owner?.name || 'Unknown',
         ownerTrustScore: p.owner?.trustScore || 30,
-        title: p.name,
+        title: p.title,                            // ✅ Fixed: was p.name
         description: p.description,
         category: p.category,
         pricePerDay: p.pricePerDay,
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
-        imageUrl: p.imageUrl || 'https://placehold.co/400x300?text=No+Image',
+        imageUrl: p.imageUrl || '',
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
           address: p.location?.address || 'Erode, TN',
         },
       }));
-    } catch {
+    } catch (err) {
+      console.error('getItems error:', err);
       return MOCK_ITEMS;
     }
   }
@@ -112,24 +114,25 @@ class ApiService {
       const p = await res.json();
       if (!res.ok) throw new Error(p.msg);
       return {
-        id: p._id,
+        id: p._id,         // ✅ for View Profile navigation
         ownerId: p.owner?._id || p.owner,
         ownerName: p.owner?.name || 'Unknown',
         ownerTrustScore: p.owner?.trustScore || 30,
-        title: p.name,
+        title: p.title,                            // ✅ Fixed: was p.name
         description: p.description,
         category: p.category,
         pricePerDay: p.pricePerDay,
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
-        imageUrl: p.imageUrl || 'https://placehold.co/400x300?text=No+Image',
+        imageUrl: p.imageUrl || '',
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
           address: p.location?.address || 'Erode, TN',
         },
       };
-    } catch {
+    } catch (err) {
+      console.error('getItemById error:', err);
       return MOCK_ITEMS.find(i => i.id === id);
     }
   }
@@ -224,7 +227,7 @@ class ApiService {
       });
       if (!res.ok) throw new Error('Upload failed');
     } catch {
-      console.log(`[API] Uploading ${type} proof for ${txId}`);
+      console.log(`Uploading ${type} proof for ${txId}`);
     }
   }
 
@@ -236,7 +239,7 @@ class ApiService {
       });
       if (!res.ok) throw new Error('Complete failed');
     } catch {
-      console.log(`[API] Completing TX ${txId}`);
+      console.log(`Completing TX ${txId}`);
     }
   }
 }

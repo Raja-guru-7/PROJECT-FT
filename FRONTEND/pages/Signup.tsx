@@ -81,20 +81,20 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#F6F6F6]">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 bg-[#F6F6F6]">
       {toast && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-[#093E28] text-white px-6 py-3 rounded-xl shadow-2xl z-[100] animate-in fade-in slide-in-from-top-4">
           {toast}
         </div>
       )}
 
-      <div className="max-w-md w-full bg-white rounded-3xl soft-shadow p-8 sm:p-10">
-        <div className="text-center mb-10">
-          <Link to="/" className="inline-block bg-[#093E28] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 hover:opacity-90 transition-opacity">
-            <ShieldCheck className="text-white" size={32} />
+      <div className="max-w-md w-full bg-white rounded-3xl soft-shadow p-6 sm:p-8 lg:p-10">
+        <div className="text-center mb-8 sm:mb-10">
+          <Link to="/" className="inline-block bg-[#093E28] w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 hover:opacity-90 transition-opacity">
+            <ShieldCheck className="text-white sm:size-32" size={24} />
           </Link>
-          <h1 className="text-3xl font-black tracking-tighter text-slate-900">Join AroundU</h1>
-          <p className="text-slate-500 mt-2 font-medium">Create your trusted profile</p>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-slate-900">Join AroundU</h1>
+          <p className="text-slate-500 mt-2 font-medium text-sm sm:text-base">Create your trusted profile</p>
         </div>
 
         {error && (
@@ -145,7 +145,7 @@ const Signup: React.FC = () => {
                 disabled={isVerified}
                 value={formData.aadhaar}
                 onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value.replace(/\D/g, '') })}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-slate-800 font-semibold transition-all disabled:opacity-50"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-sm sm:text-base text-slate-800 font-semibold transition-all disabled:opacity-50"
               />
               {!isOtpSent && !isVerified && (
                 <button
@@ -166,7 +166,7 @@ const Signup: React.FC = () => {
                   maxLength={6}
                   value={formData.otp}
                   onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-slate-800 font-semibold text-center tracking-[0.5em]"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-sm sm:text-base text-slate-800 font-semibold text-center tracking-[0.5em] disabled:opacity-50"
                 />
                 <button
                   type="button"
@@ -182,7 +182,7 @@ const Signup: React.FC = () => {
             {isVerified && (
               <div className="flex items-center gap-2 text-green-600 font-bold text-sm bg-green-50 p-3 rounded-xl border border-green-100 animate-in zoom-in-95">
                 <CheckCircle2 size={18} />
-                Verified Successfully ✅
+                Verified Successfully 
               </div>
             )}
           </div>
@@ -203,13 +203,13 @@ const Signup: React.FC = () => {
           <button 
             type="submit"
             disabled={!isVerified || isLoading}
-            className="w-full bg-[#093E28] text-white py-4 rounded-full font-bold text-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100 disabled:opacity-50"
+            className="w-full mt-4 sm:mt-6 bg-[#093E28] text-white py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100 disabled:opacity-50"
           >
             {isLoading ? <Loader2 className="animate-spin" size={24} /> : <>Register <ArrowRight size={20} /></>}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        <div className="mt-6 sm:mt-8 text-center">
           <p className="text-slate-500 font-medium">
             Already have an account?{' '}
             <Link to="/login" className="text-[#FF7A59] font-bold hover:underline">
@@ -230,7 +230,7 @@ const InputField = ({ icon, label, ...props }: { icon: React.ReactNode, label: s
       <input
         required
         {...props}
-        className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-slate-800 font-semibold transition-all placeholder:text-slate-400"
+        className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-sm sm:text-base text-slate-800 font-semibold transition-all placeholder:text-slate-400"
       />
     </div>
   </div>

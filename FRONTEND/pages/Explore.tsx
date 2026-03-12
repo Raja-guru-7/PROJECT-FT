@@ -138,51 +138,51 @@ const Explore: React.FC = () => {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 lg:py-16">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 lg:py-16">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 lg:gap-8 mb-8 sm:mb-12">
           <div className="flex-1 min-w-0">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-slate-900 leading-tight mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl lg:text-6xl font-black tracking-tighter text-slate-900 leading-tight mb-3 sm:mb-4">
               Explore Nearby
             </h1>
-            <div className="flex flex-wrap items-center gap-4">
-              <p className="text-base md:text-lg text-slate-500 font-medium">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <p className="text-sm sm:text-base lg:text-lg text-slate-500 font-medium">
                 Find trusted items available for rent in your area.
               </p>
               <button 
                 onClick={syncLocation} 
                 disabled={isLocating} 
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-200 bg-white text-slate-900 hover:bg-gray-50 transition-all shadow-sm active:scale-95 shrink-0"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-gray-200 bg-white text-slate-900 hover:bg-gray-50 transition-all shadow-sm active:scale-95 shrink-0"
               >
                 <Navigation size={12} className={isLocating ? "animate-spin" : ""} />
                 Get Location
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="flex bg-slate-900 p-1 rounded-full shadow-xl">
               <button 
                 onClick={() => setViewMode('grid')} 
-                className={`px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-md' : 'text-white/60 hover:text-white'}`}
+                className={`px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-md' : 'text-white/60 hover:text-white'}`}
               >
                 <LayoutGrid size={14} /> Assets
               </button>
               <button 
                 onClick={() => setViewMode('map')} 
-                className={`px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all ${viewMode === 'map' ? 'bg-white text-slate-900 shadow-md' : 'text-white/60 hover:text-white'}`}
+                className={`px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 transition-all ${viewMode === 'map' ? 'bg-white text-slate-900 shadow-md' : 'text-white/60 hover:text-white'}`}
               >
                 <MapIcon size={14} /> Map
               </button>
             </div>
             <button 
               onClick={() => setShowFilters(true)} 
-              className="px-6 py-3.5 bg-white text-slate-900 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 border border-gray-100 hover:bg-gray-50 transition-all shadow-lg active:scale-95"
+              className="px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white text-slate-900 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 border border-gray-100 hover:bg-gray-50 transition-all shadow-lg active:scale-95"
             >
               <Filter size={16} /> Filters
             </button>
           </div>
         </div>
 
-        <div className="mb-12 relative group max-w-4xl">
+        <div className="mb-8 sm:mb-12 relative group max-w-4xl">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#093E28] transition-all duration-300" size={20} />
           <form onSubmit={(e) => { e.preventDefault(); fetchItems(); }}>
             <input 
@@ -190,7 +190,7 @@ const Explore: React.FC = () => {
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)} 
               placeholder="Search for anything..." 
-              className="w-full pl-14 pr-6 py-5 bg-white border border-gray-100 rounded-2xl focus:ring-4 focus:ring-[#093E28]/5 outline-none text-lg text-slate-800 font-semibold shadow-xl transition-all placeholder:text-slate-300" 
+              className="w-full pl-12 sm:pl-14 pr-4 sm:pr-6 py-4 sm:py-5 bg-white border border-gray-100 rounded-2xl focus:ring-4 focus:ring-[#093E28]/5 outline-none text-base sm:text-lg text-slate-800 font-semibold shadow-xl transition-all placeholder:text-slate-300" 
             />
           </form>
         </div>
@@ -201,24 +201,24 @@ const Explore: React.FC = () => {
             <span className="font-semibold">Searching the network...</span>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 animate-in fade-in duration-500">
             {filteredItems.map(item => (
               <Link key={item.id} to={`/item/${item.id}`} className="group block">
                 <div className="bg-white rounded-3xl soft-shadow soft-shadow-hover transition-all h-full flex flex-col overflow-hidden border border-slate-50 group-hover:-translate-y-1.5 duration-500">
                   <div className="relative aspect-square overflow-hidden">
                     <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" />
-                    <button onClick={(e) => toggleSave(e, item.id)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-lg">
-                      <Heart size={20} className={savedItems.has(item.id) ? "fill-[#FF7A59] text-[#FF7A59]" : "text-slate-300"} />
+                    <button onClick={(e) => toggleSave(e, item.id)} className="absolute top-3 sm:top-4 right-3 sm:right-4 w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-white/90 backdrop-blur-xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-lg">
+                      <Heart size={16} className={savedItems.has(item.id) ? "fill-[#FF7A59] text-[#FF7A59]" : "text-slate-300"} />
                     </button>
                   </div>
-                  <div className="p-6 flex-1 flex flex-col">
+                  <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col">
                     <div className="flex-1">
-                      <p className="text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">{item.category}</p>
-                      <h3 className="text-xl font-black text-slate-900 leading-tight mb-3 group-hover:text-[#093E28] transition-colors line-clamp-2">{item.title}</h3>
+                      <p className="text-[8px] sm:text-[9px] font-black text-slate-400 mb-1 sm:mb-1.5 uppercase tracking-widest">{item.category}</p>
+                      <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-tight mb-2 sm:mb-3 group-hover:text-[#093E28] transition-colors line-clamp-2">{item.title}</h3>
                     </div>
                     
-                    <div className="flex items-center gap-1.5 text-xs font-black text-green-600">
-                      <Star size={14} fill="currentColor" />
+                    <div className="flex items-center gap-1 text-xs sm:text-xs font-black text-green-600">
+                      <Star size={12} fill="currentColor" />
                       {item.ownerTrustScore}% Trust
                     </div>
                   </div>
@@ -227,17 +227,17 @@ const Explore: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="h-[65vh] w-full rounded-[3rem] overflow-hidden soft-shadow border border-gray-100">
+          <div className="h-[50vh] sm:h-[60vh] lg:h-[65vh] w-full rounded-[2rem] sm:rounded-[3rem] overflow-hidden soft-shadow border border-gray-100">
             <MapContainer center={userLocation ? [userLocation.lat, userLocation.lng] : [40.7128, -74.0060]} zoom={13} className="h-full">
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               {filteredItems.map(item => (
                 <Marker key={item.id} position={[item.location.lat, item.location.lng]}>
                   <Popup>
                     <div className="p-2 w-56">
-                      <img src={item.imageUrl} alt={item.title} className="w-full h-24 object-cover rounded-xl mb-3" />
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-20 sm:h-24 object-cover rounded-xl mb-2 sm:mb-3" />
                       <h4 className="font-black text-slate-800 text-sm mb-1">{item.title}</h4>
                       <p className="text-xs text-slate-500 mb-3">₹{item.pricePerDay}/day</p>
-                      <Link to={`/item/${item.id}`} className="block text-center bg-[#093E28] text-white py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all">View Details</Link>
+                      <Link to={`/item/${item.id}`} className="block text-center bg-[#093E28] text-white py-2 sm:py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all">View Details</Link>
                     </div>
                   </Popup>
                 </Marker>

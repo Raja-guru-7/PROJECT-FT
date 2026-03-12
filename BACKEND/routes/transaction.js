@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const Transaction = require("../models/Transaction");
+const { uploadVideo } = require("../cloudinary");
 
 // @route POST /api/transaction/create
 router.post("/create", auth, async (req, res) => {
@@ -22,7 +23,7 @@ router.post("/create", auth, async (req, res) => {
     });
 
     await transaction.save();
-    res.json(transaction);
+    res.json({ transaction, otpCode }); // otpCode frontend-la show aagum (dev mode)
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
@@ -74,18 +75,30 @@ router.post("/:id/verify-otp", auth, async (req, res) => {
   }
 });
 
-// @route POST /api/transaction/:id/upload-proof
-router.post("/:id/upload-proof", auth, async (req, res) => {
+// @route POST /api/transaction/:id/upload-proof (blob from camera)
+router.post("/:id/upload-proof", auth, uploadVideo.single("video"), async (req, res) => {
   try {
-    const { type, videoUrl } = req.body;
+    const { type } = req.body;
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
 
+    const videoUrl = req.file ? req.file.path : req.body.videoUrl;
     if (type === "OWNER") transaction.ownerVideoUrl = videoUrl;
     if (type === "RENTER") transaction.renterVideoUrl = videoUrl;
 
     await transaction.save();
     res.json({ msg: "Proof uploaded!", transaction });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+// @route POST /api/transaction/upload-proof-file (ProofOfCondition page)
+router.post("/upload-proof-file", auth, uploadVideo.single("video"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ msg: "No file uploaded" });
+    res.json({ url: req.file.path, msg: "Video uploaded to Cloudinary!" });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");

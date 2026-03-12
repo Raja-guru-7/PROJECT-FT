@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -17,6 +16,7 @@ import Settings from './pages/Settings';
 import SavedAssets from './pages/SavedAssets';
 import ActivityLog from './pages/ActivityLog';
 import AiAssistant from './components/AiAssistant';
+import UserProfile from './pages/UserProfile';
 
 const AppContent: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,70 +42,74 @@ const AppContent: React.FC = () => {
       <main className="flex-1 relative pb-28">
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/" 
-            element={isAuthenticated ? <Navigate to="/explore" replace /> : <Landing onLogin={() => navigate('/login')} />} 
+          <Route
+            path="/"
+            element={isAuthenticated ? <Navigate to="/explore" replace /> : <Landing onLogin={() => navigate('/login')} />}
           />
-          <Route 
-            path="/login" 
-            element={isAuthenticated ? <Navigate to="/explore" replace /> : <Login onLogin={handleLogin} />} 
+          <Route
+            path="/login"
+            element={isAuthenticated ? <Navigate to="/explore" replace /> : <Login onLogin={handleLogin} />}
           />
-          <Route 
-            path="/signup" 
-            element={isAuthenticated ? <Navigate to="/explore" replace /> : <Signup />} 
+          <Route
+            path="/signup"
+            element={isAuthenticated ? <Navigate to="/explore" replace /> : <Signup />}
           />
-          <Route 
-            path="/verify-otp" 
-            element={isAuthenticated ? <Navigate to="/explore" replace /> : <VerifyOTP />} 
+          <Route
+            path="/verify-otp"
+            element={isAuthenticated ? <Navigate to="/explore" replace /> : <VerifyOTP />}
           />
 
           {/* Protected Routes */}
-          <Route 
-            path="/explore" 
-            element={isAuthenticated ? <Explore /> : <Navigate to="/" replace />} 
+          <Route
+            path="/explore"
+            element={isAuthenticated ? <Explore /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/item/:id" 
-            element={isAuthenticated ? <ItemDetail /> : <Navigate to="/" replace />} 
+          <Route
+            path="/item/:id"
+            element={isAuthenticated ? <ItemDetail /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/handover/:txId" 
-            element={isAuthenticated ? <Handover /> : <Navigate to="/" replace />} 
+          <Route
+            path="/handover/:txId"
+            element={isAuthenticated ? <Handover /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/dashboard" 
-            element={isAuthenticated ? <Dashboard role={userRole} /> : <Navigate to="/" replace />} 
+          <Route
+            path="/dashboard"
+            element={isAuthenticated ? <Dashboard role={userRole} /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/add" 
-            element={isAuthenticated ? <AddItem /> : <Navigate to="/" replace />} 
+          <Route
+            path="/add"
+            element={isAuthenticated ? <AddItem /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/profile" 
-            element={isAuthenticated ? <Profile /> : <Navigate to="/" replace />} 
+          <Route
+            path="/profile"
+            element={isAuthenticated ? <Profile /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/settings" 
-            element={isAuthenticated ? <Settings /> : <Navigate to="/" replace />} 
+          <Route
+            path="/settings"
+            element={isAuthenticated ? <Settings /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/saved" 
-            element={isAuthenticated ? <SavedAssets /> : <Navigate to="/" replace />} 
+          <Route
+            path="/saved"
+            element={isAuthenticated ? <SavedAssets /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/activity" 
-            element={isAuthenticated ? <ActivityLog /> : <Navigate to="/" replace />} 
+          <Route
+            path="/activity"
+            element={isAuthenticated ? <ActivityLog /> : <Navigate to="/" replace />}
           />
-          <Route 
-            path="/proof" 
-            element={isAuthenticated ? <ProofOfCondition /> : <Navigate to="/" replace />} 
+          <Route
+            path="/proof"
+            element={isAuthenticated ? <ProofOfCondition /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/user/:userId"
+            element={isAuthenticated ? <UserProfile /> : <Navigate to="/" replace />}
           />
 
-          {/* Catch-all redirect */}
+          {/* Catch-all — ALWAYS LAST */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      
+
       {isAuthenticated && <AiAssistant />}
     </div>
   );
