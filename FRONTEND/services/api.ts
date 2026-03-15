@@ -1,7 +1,7 @@
 import { MOCK_ITEMS, MOCK_CURRENT_USER, MOCK_TRANSACTIONS } from '../mockData';
 import { Item, Transaction, User } from '../types';
 
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = 'https://aroundu-backend-hd26.onrender.com/api';
 
 class ApiService {
 
