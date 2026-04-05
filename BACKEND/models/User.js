@@ -33,7 +33,7 @@ const UserSchema = new mongoose.Schema({
     last4: { type: String, default: '' },
     expiry: { type: String, default: '' }
   },
-  savedItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'product' }]
+  savedAssets: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]  // ✅ savedItems → savedAssets, 'product' → 'Product'
 }, { timestamps: true });
 
 UserSchema.methods.calculateTrustScore = function () {

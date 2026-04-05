@@ -28,7 +28,7 @@ router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
     res.json({ msg: "Product listed successfully!", product });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message }); // ✅ Fixed
   }
 });
 
@@ -54,7 +54,7 @@ router.get("/nearby", async (req, res) => {
     res.json(products);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message }); // ✅ Fixed
   }
 });
 
@@ -63,8 +63,7 @@ router.get("/all", async (req, res) => {
   try {
     const { category, query, status } = req.query;
     let filter = {};
-    
-    // Support both 'status=available' and legacy 'isAvailable: true'
+
     if (status === 'available') {
       filter.$or = [{ status: 'available' }, { isAvailable: true }];
     } else {
@@ -81,7 +80,7 @@ router.get("/all", async (req, res) => {
     res.json(products);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message }); // ✅ Fixed
   }
 });
 
@@ -94,7 +93,7 @@ router.get("/:id", async (req, res) => {
     res.json(product);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message }); // ✅ Fixed
   }
 });
 
