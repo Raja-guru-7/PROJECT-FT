@@ -1,167 +1,325 @@
-
-import React from 'react';
-import { ShieldCheck, Video, UserCheck, Wallet, ArrowRight, Zap, MapPin, Search } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ShieldCheck, Video, Search, ArrowRight, MapPin, Sun, Moon } from 'lucide-react';
+import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import Dotgrid from '../components/ui/Dotgrid';
 
 interface LandingProps {
   onLogin: () => void;
 }
 
-const Landing: React.FC<LandingProps> = ({ onLogin }) => {
+type Theme = 'dark' | 'light';
+
+const tokens = {
+  dark: {
+    pageBg: '#0a0a0a',
+    navBg: 'rgba(10,10,10,0.80)',
+    navBorder: 'rgba(255,255,255,0.10)',
+    navShadow: '0 8px 40px rgba(0,0,0,0.6)',
+    glassCard: {
+      background: 'rgba(255,255,255,0.06)',
+      backdropFilter: 'blur(32px)',
+      WebkitBackdropFilter: 'blur(32px)',
+      border: '1px solid rgba(255,255,255,0.12)',
+      borderRadius: '20px',
+      boxShadow: '0 8px 48px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.10) inset',
+    },
+    logoIconBg: 'rgba(255,255,255,0.08)',
+    logoIconBorder: 'rgba(255,255,255,0.18)',
+    logoIconShadow: '0 4px 20px rgba(255,255,255,0.10)',
+    logoText: '#ffffff',
+    navLink: 'rgba(255,255,255,0.50)',
+    navLinkHover: '#ffffff',
+    exploreBtn: { bg: '#ffffff', color: '#000000', shadow: '0 0 24px rgba(255,255,255,0.20)' },
+    heroTitle: '#ffffff',
+    heroAccent: 'linear-gradient(135deg, #ffffff, #aaaaaa)',
+    heroSub: 'rgba(255,255,255,0.50)',
+    startBtn: {
+      background: 'rgba(255,255,255,0.08)',
+      border: '1px solid rgba(255,255,255,0.25)',
+      shadow: '0 4px 24px rgba(255,255,255,0.08)',
+      color: '#ffffff',
+    },
+    tiltGloss: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)',
+    cardLabel: 'rgba(255,255,255,0.60)',
+    cardLabel2: 'rgba(255,255,255,0.60)',
+    cardTitle: '#ffffff',
+    cardSub: 'rgba(255,255,255,0.50)',
+    featHeading: '#ffffff',
+    featSub: 'rgba(255,255,255,0.50)',
+    iconBg: 'rgba(255,255,255,0.08)',
+    iconBorder: 'rgba(255,255,255,0.15)',
+    iconShadow: '0 4px 16px rgba(255,255,255,0.05)',
+    featTitle: '#ffffff',
+    featBody: 'rgba(255,255,255,0.50)',
+    toggleBg: 'rgba(255,255,255,0.08)',
+    toggleBorder: 'rgba(255,255,255,0.18)',
+    toggleThumb: '#ffffff',
+    toggleIcon: '#000000',
+    dotBase: '#2a2a2a',
+    dotActive: '#ffffff',
+    dotBg: '#000000',
+    galaxyVisible: true,
+  },
+  light: {
+    pageBg: '#ffffff',
+    navBg: 'rgba(255,255,255,0.85)',
+    navBorder: 'rgba(0,0,0,0.08)',
+    navShadow: '0 4px 24px rgba(0,0,0,0.08)',
+    glassCard: {
+      background: 'rgba(255,255,255,0.80)',
+      backdropFilter: 'blur(32px)',
+      WebkitBackdropFilter: 'blur(32px)',
+      border: '1px solid rgba(0,0,0,0.09)',
+      borderRadius: '20px',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.90) inset',
+    },
+    logoIconBg: 'rgba(0,0,0,0.05)',
+    logoIconBorder: 'rgba(0,0,0,0.12)',
+    logoIconShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    logoText: '#0a0a0a',
+    navLink: 'rgba(0,0,0,0.45)',
+    navLinkHover: '#0a0a0a',
+    exploreBtn: { bg: '#000000', color: '#ffffff', shadow: '0 0 20px rgba(0,0,0,0.15)' },
+    heroTitle: '#0a0a0a',
+    heroAccent: 'linear-gradient(135deg, #0a0a0a, #555555)',
+    heroSub: 'rgba(0,0,0,0.50)',
+    startBtn: {
+      background: 'rgba(0,0,0,0.06)',
+      border: '1px solid rgba(0,0,0,0.15)',
+      shadow: '0 4px 20px rgba(0,0,0,0.06)',
+      color: '#0a0a0a',
+    },
+    tiltGloss: 'linear-gradient(135deg, rgba(255,255,255,0.70) 0%, transparent 60%)',
+    cardLabel: 'rgba(0,0,0,0.45)',
+    cardLabel2: 'rgba(0,0,0,0.45)',
+    cardTitle: '#0a0a0a',
+    cardSub: 'rgba(0,0,0,0.45)',
+    featHeading: '#0a0a0a',
+    featSub: 'rgba(0,0,0,0.50)',
+    iconBg: 'rgba(0,0,0,0.05)',
+    iconBorder: 'rgba(0,0,0,0.10)',
+    iconShadow: '0 4px 16px rgba(0,0,0,0.05)',
+    featTitle: '#0a0a0a',
+    featBody: 'rgba(0,0,0,0.50)',
+    toggleBg: 'rgba(0,0,0,0.07)',
+    toggleBorder: 'rgba(0,0,0,0.15)',
+    toggleThumb: '#000000',
+    toggleIcon: '#ffffff',
+    dotBase: '#d0d0d0',
+    dotActive: '#000000',
+    dotBg: 'transparent',
+    galaxyVisible: true,
+  },
+} as const;
+
+const getGlassCard = (theme: Theme): React.CSSProperties => tokens[theme].glassCard;
+
+const ThemeToggle: React.FC<{ theme: Theme; onToggle: () => void }> = ({ theme, onToggle }) => {
+  const t = tokens[theme];
+  const isLight = theme === 'light';
   return (
-    <div className="w-full bg-[#F6F6F6] text-[#212121] flex flex-col">
-      {/* Navbar */}
-      <nav className="w-full sticky top-0 bg-[#F6F6F6]/80 backdrop-blur-xl z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#093E28] p-2 rounded-xl">
-              <ShieldCheck className="text-white" size={20} />
-            </div>
-            <span className="text-lg sm:text-xl font-black tracking-tighter">AroundU</span>
-          </div>
-          <div className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-semibold text-slate-600">
-            <a href="#features" className="hover:text-slate-900">How it Works</a>
-            <a href="#categories" className="hover:text-slate-900">Categories</a>
-            <a href="#trust" className="hover:text-slate-900">Our Promise</a>
-          </div>
-          <button
-            onClick={onLogin}
-            className="bg-[#093E28] text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-bold text-sm hover:opacity-90 transition-opacity active:scale-95"
-          >
-            Explore Network
-          </button>
-        </div>
-      </nav>
+    <motion.button
+      onClick={onToggle}
+      whileHover={{ scale: 1.08 }}
+      whileTap={{ scale: 0.93 }}
+      style={{
+        width: 52, height: 28, borderRadius: 14,
+        background: t.toggleBg, border: `1px solid ${t.toggleBorder}`,
+        cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '3px',
+        position: 'relative', transition: 'background 0.4s, border-color 0.4s',
+      }}
+      aria-label="Toggle theme"
+    >
+      <motion.div
+        animate={{ x: isLight ? 24 : 0 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        style={{
+          width: 22, height: 22, borderRadius: '50%', background: t.toggleThumb,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.20)',
+        }}
+      >
+        {isLight
+          ? <Sun size={12} color={t.toggleIcon} strokeWidth={2.5} />
+          : <Moon size={12} color={t.toggleIcon} strokeWidth={2.5} />
+        }
+      </motion.div>
+    </motion.button>
+  );
+};
 
-      {/* Hero Section */}
-      <header className="w-full bg-gradient-to-b from-[#E7EDE4] to-[#F6F6F6]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 lg:py-32 grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
-          <div className="text-center md:text-left">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tighter text-slate-900 leading-tight mb-4 sm:mb-6">
-              Access Everything, <span className="hero-gradient-text">Locally.</span>
-            </h1>
-            <p className="max-w-md mx-auto md:mx-0 text-sm sm:text-base lg:text-lg text-slate-600 mb-6 sm:mb-8 lg:mb-10">
-              Unlock a neighborhood of shared resources. Rent anything you need from trusted people nearby, secured by a revolutionary trust protocol.
-            </p>
-            <div className="flex justify-center md:justify-start gap-4">
-              <button
-                onClick={onLogin}
-                className="bg-[#FF7A59] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 transition-opacity active:scale-95 shadow-lg shadow-orange-200 flex items-center gap-2"
-              >
-                Start Exploring <ArrowRight size={20} />
-              </button>
+const TiltCard: React.FC<{
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  className?: string;
+  theme: Theme;
+}> = ({ children, style, className, theme }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [10, -10]), { stiffness: 300, damping: 30 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-10, 10]), { stiffness: 300, damping: 30 });
+  const gloss = useSpring(useTransform(x, [-0.5, 0.5], [0.05, 0.18]), { stiffness: 300, damping: 30 });
+
+  const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = ref.current; if (!el) return;
+    const rect = el.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+  const handleLeave = () => { x.set(0); y.set(0); };
+
+  return (
+    <motion.div
+      ref={ref} onMouseMove={handleMove} onMouseLeave={handleLeave}
+      style={{ ...getGlassCard(theme), ...style, rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 800, cursor: 'default' }}
+      className={className}
+      whileHover={{ scale: 1.04 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+    >
+      <motion.div style={{ position: 'absolute', inset: 0, borderRadius: 20, background: tokens[theme].tiltGloss, opacity: gloss, pointerEvents: 'none' }} />
+      <div style={{ transform: 'translateZ(18px)', position: 'relative' }}>{children}</div>
+    </motion.div>
+  );
+};
+
+const Landing: React.FC<LandingProps> = ({ onLogin }) => {
+  const [theme, setTheme] = useState<Theme>('dark');
+  const t = tokens[theme];
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+  return (
+    <div className="relative w-full min-h-screen overflow-x-hidden" style={{ backgroundColor: t.pageBg, transition: 'background-color 0.5s ease' }}>
+
+      {/* DotGrid Background */}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: t.dotBg, zIndex: 0, opacity: t.galaxyVisible ? 1 : 0, transition: 'opacity 0.6s ease, background-color 0.5s ease' }}>
+        <Dotgrid dotSize={4} gap={18} baseColor={t.dotBase} activeColor={t.dotActive} proximity={120} shockRadius={250} shockStrength={5} resistance={750} returnDuration={1.5} />
+      </div>
+
+
+
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full flex flex-col min-h-screen relative z-10 pointer-events-none">
+
+        {/* Navbar */}
+        <nav className="w-[calc(100%-2rem)] mx-auto mt-4 sticky top-4 z-50 pointer-events-auto" style={{ background: t.navBg, backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)', border: `1px solid ${t.navBorder}`, borderRadius: '9999px', boxShadow: t.navShadow, transition: 'background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease' }}>
+          <div className="w-full px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+            <div className="flex items-center gap-3 group">
+              <div className="p-2 rounded-full group-hover:scale-105 transition-transform" style={{ background: t.logoIconBg, border: `1px solid ${t.logoIconBorder}`, boxShadow: t.logoIconShadow, transition: 'background 0.5s, border-color 0.5s, box-shadow 0.5s' }}>
+                <ShieldCheck style={{ color: theme === 'dark' ? '#ffffff' : '#0a0a0a' }} size={20} />
+              </div>
+              <span className="text-lg sm:text-xl font-black tracking-tight drop-shadow-md" style={{ color: t.logoText, transition: 'color 0.5s' }}>AroundU</span>
+            </div>
+            <div className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-semibold">
+              <a href="#features" className="transition-colors cursor-pointer" style={{ color: t.navLink }} onMouseEnter={e => (e.currentTarget.style.color = t.navLinkHover)} onMouseLeave={e => (e.currentTarget.style.color = t.navLink)}>How it Works</a>
+            </div>
+            <div className="flex items-center gap-3">
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+              <motion.button onClick={onLogin} whileHover={{ scale: 1.05, opacity: 0.92 }} whileTap={{ scale: 0.96 }} className="py-3 px-8 font-extrabold rounded-2xl uppercase tracking-widest text-xs transition-all" style={{ background: t.exploreBtn.bg, color: t.exploreBtn.color, boxShadow: t.exploreBtn.shadow, cursor: 'pointer', border: 'none', transition: 'background 0.5s, box-shadow 0.5s' }}>
+                Explore Network
+              </motion.button>
             </div>
           </div>
-          <div className="hidden md:flex items-center justify-center">
-             <div className="relative w-[350px] sm:w-[400px] lg:w-[450px] h-[350px] sm:h-[400px] lg:h-[450px]">
-                <div className="absolute inset-0 bg-green-100 rounded-full blur-2xl opacity-50" />
-                <div className="absolute w-56 sm:w-64 lg:w-72 h-32 sm:h-36 lg:h-40 bg-white rounded-3xl soft-shadow top-1/4 left-0 p-3 sm:p-4 transform -rotate-12 transition-all hover:rotate-[-15deg] hover:scale-105">
-                  <p className="text-xs sm:text-sm font-bold text-slate-400">Now Renting</p>
-                  <p className="text-sm sm:text-base lg:text-lg font-bold text-slate-800 mt-1 sm:mt-2">Professional Camera</p>
-                  <div className="flex items-center gap-2 mt-2 sm:mt-4">
-                     <img src="https://picsum.photos/seed/alex/40" className="w-6 h-6 sm:w-8 sm:h-8 rounded-full" alt="user"/>
-                     <span className="text-xs sm:text-sm font-semibold text-slate-600">from R G</span>
+        </nav>
+
+        {/* Hero */}
+        <header className="relative w-full min-h-[85vh] flex items-center">
+          <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 grid md:grid-cols-2 gap-8 items-center">
+            <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease: 'easeOut' }} className="text-center md:text-left pointer-events-auto">
+              <h1 key={theme} className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tight leading-tight mb-6 drop-shadow-md" style={{ color: t.heroTitle, transition: 'color 0.5s' }}>
+                Access Everything,
+                <br />
+                {/* ✅ FIX: display inline-block + color transparent prevents orange box in light mode */}
+                <span style={{ background: t.heroAccent, WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent', display: 'inline-block', transition: 'background 0.5s' }}>
+                  Locally.
+                </span>
+              </h1>
+              <p className="max-w-md mx-auto md:mx-0 text-sm sm:text-base lg:text-lg mb-10 font-medium" style={{ color: t.heroSub, transition: 'color 0.5s' }}>
+                Unlock a neighborhood of shared resources. Rent anything you need from trusted people nearby, secured by a revolutionary 3D trust protocol.
+              </p>
+              <div className="flex justify-center md:justify-start gap-4">
+                <motion.button onClick={onLogin} whileHover={{ scale: 1.05, opacity: 0.92 }} whileTap={{ scale: 0.96 }} className="flex items-center gap-2 text-base sm:text-lg px-8 py-4 rounded-2xl font-black uppercase tracking-widest" style={{ background: t.startBtn.background, border: t.startBtn.border, boxShadow: t.startBtn.shadow, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer', color: t.startBtn.color, transition: 'background 0.5s, border-color 0.5s, box-shadow 0.5s, color 0.5s' }}>
+                  Start Exploring <ArrowRight size={20} />
+                </motion.button>
+              </div>
+            </motion.div>
+
+            {/* 3D Tilt Cards */}
+            <div className="hidden md:flex relative h-[500px] items-center justify-center pointer-events-auto" style={{ perspective: 1000 }}>
+              <motion.div initial={{ opacity: 0, scale: 0.8, y: 50 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="absolute top-10 right-10">
+                <TiltCard style={{ padding: '1.25rem', width: '16rem' }} theme={theme}>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: t.cardLabel, transition: 'color 0.5s' }}>NOW RENTING</p>
+                  <p className="text-lg font-bold mt-1" style={{ color: t.cardTitle, transition: 'color 0.5s' }}>Professional Camera</p>
+                  <div className="flex items-center gap-2 mt-4">
+                    <img src={`https://ui-avatars.com/api/?name=RG&background=${theme === 'dark' ? 'ffffff' : '0a0a0a'}&color=${theme === 'dark' ? '000000' : 'ffffff'}`} className="w-8 h-8 rounded-full" alt="user" style={{ border: `2px solid ${theme === 'dark' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.15)'}` }} />
+                    <span className="text-sm font-semibold" style={{ color: t.cardSub, transition: 'color 0.5s' }}>from RG</span>
                   </div>
-                </div>
-                <div className="absolute w-48 sm:w-56 lg:w-64 h-28 sm:h-32 lg:h-36 bg-white rounded-3xl soft-shadow bottom-1/4 right-0 p-3 sm:p-4 transform rotate-12 transition-all hover:rotate-[15deg] hover:scale-105">
-                  <p className="text-xs sm:text-sm font-bold text-slate-400">New Listing</p>
-                  <p className="text-sm sm:text-base lg:text-lg font-bold text-slate-800 mt-1 sm:mt-2">Camping Tent</p>
-                  <div className="flex items-center gap-2 mt-1 sm:mt-2 text-green-700 text-sm font-bold">
-                     <MapPin size={12} className="sm:size-14"/> SoHo Junction
+                </TiltCard>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, scale: 0.8, y: -50 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="absolute bottom-10 left-10">
+                <TiltCard style={{ padding: '1.25rem', width: '14rem' }} theme={theme}>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: t.cardLabel2, transition: 'color 0.5s' }}>NEW LISTING</p>
+                  <p className="text-lg font-bold mt-1" style={{ color: t.cardTitle, transition: 'color 0.5s' }}>Camping Tent</p>
+                  <div className="flex items-center gap-2 mt-2 text-sm font-bold" style={{ color: t.cardSub, transition: 'color 0.5s' }}>
+                    <MapPin size={14} /> SoHo Junction
                   </div>
-                </div>
-             </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Features Section */}
-      <section id="features" className="py-16 sm:py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter mb-3 sm:mb-4">A Safer Way to Share</h2>
-          <p className="text-slate-600 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-12 sm:mb-16">Our trust-first system ensures every transaction is secure, transparent, and simple.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            <FeatureCard icon={<Search />} title="Discover Locally" description="Find what you need, right in your neighborhood, from tools to tech." />
-            <FeatureCard icon={<Video />} title="Verify Securely" description="Live video and OTP handshakes mean you know exactly what you're getting." />
-            <FeatureCard icon={<ShieldCheck />} title="Transact with Trust" description="Smart escrow holds payment until both parties confirm a successful return." />
-          </div>
-        </div>
-      </section>
-
-      {/* Categories Section */}
-      <section id="categories" className="py-16 sm:py-20 lg:py-28 bg-[#E7EDE4]/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter text-center mb-12 sm:mb-16">Explore the Neighborhood Inventory</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            <CategoryCard name="Electronics" image="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=60&w=400" />
-            <CategoryCard name="Tools" image="https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=60&w=400" />
-            <CategoryCard name="Camping" image="https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&q=60&w=400" />
-            <CategoryCard name="Vehicles" image="https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&q=60&w=400" />
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Section */}
-      <section id="trust" className="py-16 sm:py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter mb-3 sm:mb-4">Built on a Foundation of Trust</h2>
-            <p className="text-slate-600 text-sm sm:text-base lg:text-lg mb-12 sm:mb-16">Hear from members of the AroundU network who are building a more resourceful community.</p>
-            <div className="space-y-8">
-              <TestimonialCard 
-                quote="The live verification process is a game-changer. I rented a camera for a shoot and had complete peace of mind. It felt safer than any other platform."
-                name="Sarah Miller"
-                role="Professional Photographer"
-                avatar="https://picsum.photos/seed/sarah/100"
-              />
+                </TiltCard>
+              </motion.div>
             </div>
-           </div>
-        </div>
-      </section>
-      
-      {/* Footer */}
-      <footer className="w-full border-t border-gray-200 py-8 sm:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
-          <p className="text-sm text-slate-500">&copy; 2024 AroundU. All rights reserved.</p>
-          <div className="flex gap-4 sm:gap-6 text-sm font-semibold text-slate-600">
-             <a href="#" className="hover:text-slate-900">Terms</a>
-             <a href="#" className="hover:text-slate-900">Privacy</a>
-             <a href="#" className="hover:text-slate-900">Contact</a>
           </div>
-        </div>
-      </footer>
+        </header>
+
+        {/* Features */}
+        <section id="features" className="relative py-20 lg:py-32 pointer-events-auto">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4 drop-shadow-md uppercase" style={{ color: t.featHeading, transition: 'color 0.5s' }}>A Safer Way to Share</h2>
+              <p className="text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-16 font-medium" style={{ color: t.featSub, transition: 'color 0.5s' }}>Our trust-first system ensures every transaction is secure, transparent, and simple.</p>
+            </motion.div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <FeatureCard icon={<Search size={24} />} title="Discover Locally" description="Find what you need, right in your neighborhood, from tools to tech." delay={0.1} theme={theme} />
+              <FeatureCard icon={<Video size={24} />} title="Verify Securely" description="Live video and OTP handshakes mean you know exactly what you're getting." delay={0.2} theme={theme} />
+              <FeatureCard icon={<ShieldCheck size={24} />} title="Transact with Trust" description="Smart escrow holds payment until both parties confirm a successful return." delay={0.3} theme={theme} />
+            </div>
+          </div>
+        </section>
+      </motion.div>
     </div>
   );
 };
 
-const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
-  <div className="bg-white p-8 rounded-2xl soft-shadow text-left">
-    <div className="bg-[#E7EDE4] w-12 h-12 rounded-full flex items-center justify-center text-[#093E28] mb-5">
-      {icon}
-    </div>
-    <h3 className="text-xl font-bold mb-2">{title}</h3>
-    <p className="text-slate-600">{description}</p>
-  </div>
-);
+const FeatureCard = ({ icon, title, description, delay, theme }: { icon: React.ReactNode; title: string; description: string; delay: number; theme: Theme }) => {
+  const t = tokens[theme];
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [8, -8]), { stiffness: 280, damping: 28 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-8, 8]), { stiffness: 280, damping: 28 });
+  const gloss = useSpring(useTransform(x, [-0.5, 0.5], [0.04, 0.16]), { stiffness: 280, damping: 28 });
 
-const CategoryCard = ({ name, image }: { name: string; image: string }) => (
-  <div className="relative rounded-2xl overflow-hidden aspect-square group cursor-pointer">
-    <img src={image} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-    <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
-    <h3 className="absolute bottom-4 left-4 text-white text-xl font-bold">{name}</h3>
-  </div>
-);
+  const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = ref.current; if (!el) return;
+    const rect = el.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+  const handleLeave = () => { x.set(0); y.set(0); };
 
-const TestimonialCard = ({ quote, name, role, avatar }: { quote: string; name: string; role: string; avatar: string }) => (
-  <div className="bg-white p-8 rounded-2xl soft-shadow">
-    <p className="text-lg font-medium text-slate-700 mb-6">"{quote}"</p>
-    <div className="flex items-center gap-4">
-      <img src={avatar} alt={name} className="w-12 h-12 rounded-full" />
-      <div>
-        <p className="font-bold text-slate-900">{name}</p>
-        <p className="text-sm text-slate-500">{role}</p>
-      </div>
-    </div>
-  </div>
-);
+  return (
+    <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay }} className="h-full">
+      <motion.div ref={ref} onMouseMove={handleMove} onMouseLeave={handleLeave} whileHover={{ scale: 1.03, y: -6 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+        style={{ ...getGlassCard(theme), padding: '2rem', height: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', transformStyle: 'preserve-3d', rotateX, rotateY, cursor: 'default', transition: 'background 0.5s, border-color 0.5s, box-shadow 0.5s' }}>
+        <motion.div style={{ position: 'absolute', inset: 0, borderRadius: 20, background: t.tiltGloss, opacity: gloss, pointerEvents: 'none' }} />
+        <div style={{ transform: 'translateZ(12px)', position: 'relative' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6" style={{ background: t.iconBg, border: `1px solid ${t.iconBorder}`, boxShadow: t.iconShadow, color: theme === 'dark' ? '#ffffff' : '#0a0a0a', transition: 'background 0.5s, border-color 0.5s, box-shadow 0.5s, color 0.5s' }}>
+            {icon}
+          </div>
+          <h3 className="text-xl font-black mb-3 uppercase tracking-wide" style={{ color: t.featTitle, transition: 'color 0.5s' }}>{title}</h3>
+          <p className="leading-relaxed font-medium" style={{ color: t.featBody, transition: 'color 0.5s' }}>{description}</p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 export default Landing;

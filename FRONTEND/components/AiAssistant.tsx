@@ -66,11 +66,11 @@ const AiAssistant: React.FC = () => {
                   <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-white italic">Smart Concierge</h3>
                   <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-white/60">Neural Link Active</span>
+                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-white">Neural Link Active</span>
                   </div>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-white/60 hover:text-white transition-colors">
+              <button onClick={() => setIsOpen(false)} className="text-white hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -82,7 +82,7 @@ const AiAssistant: React.FC = () => {
                   <div className={`max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-[11px] sm:text-[11px] font-bold uppercase tracking-wide leading-relaxed ${
                     m.role === 'user' 
                       ? 'bg-white text-black rounded-tr-none' 
-                      : 'bg-white/5 text-white/80 border border-white/5 rounded-tl-none'
+                      : 'bg-white/10 text-white border border-white/15 rounded-tl-none'
                   }`}>
                     {m.content}
                   </div>
@@ -92,7 +92,7 @@ const AiAssistant: React.FC = () => {
                 <div className="flex justify-start">
                   <div className="bg-white/5 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-[#A84bc9]" />
-                    <span className="text-[9px] font-black uppercase text-white/20 tracking-widest">Processing Query</span>
+                    <span className="text-[9px] font-black uppercase text-white tracking-widest">Processing Query</span>
                   </div>
                 </div>
               )}
@@ -112,7 +112,7 @@ const AiAssistant: React.FC = () => {
                 <button 
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-[#A84bc9] text-white rounded-lg flex items-center justify-center disabled:opacity-20 hover:brightness-110 transition-all"
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-[#A84bc9] text-white rounded-lg flex items-center justify-center disabled:brightness-75 hover:brightness-110 transition-all"
                 >
                   <Send size={16} />
                 </button>

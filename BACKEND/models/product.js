@@ -30,6 +30,16 @@ const ProductSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  status: {
+    type: String,
+    enum: ['available', 'rented'],
+    default: 'available'
+  },
+  currentTransaction: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Transaction",
+    default: null
+  },
   imageUrl: {
     type: String,
     default: ''

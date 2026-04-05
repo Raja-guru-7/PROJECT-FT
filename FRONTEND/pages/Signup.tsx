@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, CreditCard, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { FloatingShapes } from '../components/3d/FloatingShapes';
+import { signInWithGoogle } from '../services/googleAuth';
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
+
+  // ── Original Backend Logic & State ──────────────────────────────────────
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,222 +23,276 @@ const Signup: React.FC = () => {
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
   };
 
-  const handleSendOTP = () => {
-    if (formData.aadhaar.length !== 12) {
-      setError('Aadhaar number must be 12 digits');
-      return;
-    }
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
     setError('');
-    showToast('OTP Sent to Mobile');
-    setIsOtpSent(true);
+    try {
+      const googleUserData = await signInWithGoogle();
+      navigate('/kyc');
+    } catch (err: any) {
+      setError('Google sign-up failed. Please try again.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
-  const handleVerifyOTP = async () => {
-    if (formData.otp.length !== 6) {
-      setError('Enter 6-digit OTP');
+  const handleSendOTP = async () => {
+    if (!formData.email || !formData.name) {
+      setError('Please enter your name and email first');
       return;
     }
     setError('');
-    setIsVerifying(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setIsVerifying(false);
-    setIsVerified(true);
+    setIsLoading(true);
+    try {
+      const { api } = await import('../services/api');
+      await api.sendRegistrationOtp(formData.email, formData.name);
+      showToast('Verification Code Sent to Email');
+      setIsOtpSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send OTP. Try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!isVerified) {
-      setError('Please verify your Aadhaar first');
-      return;
-    }
-    if (!agreed) {
-      setError('You must agree to the Terms & Conditions');
-      return;
-    }
-    if (!formData.name || !formData.email || !formData.password) {
-      setError('Please fill all fields');
+    if (!isOtpSent) {
+      await handleSendOTP();
       return;
     }
 
+    if (formData.otp.length !== 4) {
+      setError('Enter 4-digit Verification Code');
+      return;
+    }
+
+    if (!agreed) {
+      setError('You must agree to the Network Protocols');
+      return;
+    }
+
+    setIsVerifying(true);
     setIsLoading(true);
     try {
       const { api } = await import('../services/api');
+      
+      // 1. Run the registration
       await api.register({
         name: formData.name,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        otp: formData.otp
       });
-      showToast('Registered Successfully!');
-      setTimeout(() => navigate('/login'), 1000);
+
+      // 2. FIXED: api.register automatically saved the 'user' object to localStorage. 
+      // We parse it and extract the ID so the KYC page knows who we are!
+      const savedUserStr = localStorage.getItem('user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser.id) {
+          // Save it as pendingUserId so the KYC page finds it perfectly
+          localStorage.setItem('pendingUserId', savedUser.id);
+          localStorage.setItem('userId', savedUser.id); 
+        }
+      }
+
+      showToast('Profile Registered on Network');
+      
+      // Route to KYC
+      setTimeout(() => navigate('/kyc'), 1000);
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Try again.');
+      setError(err.message || 'Registration failure. Try again.');
     } finally {
+      setIsVerifying(false);
       setIsLoading(false);
     }
   };
+  // ────────────────────────────────────────────────────────────────────────
+
+  // --- 3D Tilt Physics (Flicker-Free) ---
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const mouseXSpring = useSpring(x, { stiffness: 400, damping: 40 });
+  const mouseYSpring = useSpring(y, { stiffness: 400, damping: 40 });
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["5deg", "-5deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-5deg", "5deg"]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+  const handleMouseLeave = () => { x.set(0); y.set(0); };
+
+  const inputClass = "w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium outline-none focus:border-slate-400 transition-all placeholder-slate-400";
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 bg-[#F6F6F6]">
-      {toast && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-[#093E28] text-white px-6 py-3 rounded-xl shadow-2xl z-[100] animate-in fade-in slide-in-from-top-4">
-          {toast}
-        </div>
-      )}
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 bg-[#F5F5F7] force-light-theme overflow-hidden">
 
-      <div className="max-w-md w-full bg-white rounded-3xl soft-shadow p-6 sm:p-8 lg:p-10">
-        <div className="text-center mb-8 sm:mb-10">
-          <Link to="/" className="inline-block bg-[#093E28] w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 hover:opacity-90 transition-opacity">
-            <ShieldCheck className="text-white sm:size-32" size={24} />
-          </Link>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-slate-900">Join AroundU</h1>
-          <p className="text-slate-500 mt-2 font-medium text-sm sm:text-base">Create your trusted profile</p>
-        </div>
+      {/* 💥 NUCLEAR CSS FOR PURE THEME & NO PINK BUTTONS 💥 */}
+      <style>{`
+        .force-light-theme input { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
+        .force-light-theme input::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; }
+        
+        button.anti-pink-btn { box-shadow: none !important; background-image: none !important; }
+        button.anti-pink-btn:disabled { background-color: #f1f5f9 !important; color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; border: 1px solid #e2e8f0 !important; cursor: not-allowed !important; }
+        button.anti-pink-btn:not(:disabled) { background-color: #000000 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; border: none !important; cursor: pointer !important; }
+        button.anti-pink-btn:not(:disabled):hover { background-color: #1e293b !important; }
+      `}</style>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSignup} className="space-y-6">
-          <InputField 
-            icon={<User size={20} />} 
-            label="Full Name" 
-            placeholder="Siva Kumar" 
-            value={formData.name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
-          />
-          
-          <InputField 
-            icon={<Mail size={20} />} 
-            label="Email Address" 
-            type="email"
-            placeholder="siva@example.com" 
-            value={formData.email}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
-          />
-
-          <InputField 
-            icon={<Lock size={20} />} 
-            label="Password" 
-            type="password"
-            placeholder="••••••••" 
-            value={formData.password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
-          />
-
-          {/* Aadhaar Section */}
-          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-2">
-              <CreditCard size={18} className="text-[#093E28]" />
-              Aadhaar Verification
-            </div>
-            
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="12-digit Aadhaar Number"
-                maxLength={12}
-                disabled={isVerified}
-                value={formData.aadhaar}
-                onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value.replace(/\D/g, '') })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-sm sm:text-base text-slate-800 font-semibold transition-all disabled:opacity-50"
-              />
-              {!isOtpSent && !isVerified && (
-                <button
-                  type="button"
-                  onClick={handleSendOTP}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#093E28] text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:opacity-90"
-                >
-                  Send OTP
-                </button>
-              )}
-            </div>
-
-            {isOtpSent && !isVerified && (
-              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                <input
-                  type="text"
-                  placeholder="Enter 6-digit OTP"
-                  maxLength={6}
-                  value={formData.otp}
-                  onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-sm sm:text-base text-slate-800 font-semibold text-center tracking-[0.5em] disabled:opacity-50"
-                />
-                <button
-                  type="button"
-                  onClick={handleVerifyOTP}
-                  disabled={isVerifying}
-                  className="w-full bg-[#093E28] text-white py-3 rounded-xl font-bold text-sm hover:opacity-90 flex items-center justify-center gap-2"
-                >
-                  {isVerifying ? <Loader2 className="animate-spin" size={18} /> : 'Verify Aadhaar'}
-                </button>
-              </div>
-            )}
-
-            {isVerified && (
-              <div className="flex items-center gap-2 text-green-600 font-bold text-sm bg-green-50 p-3 rounded-xl border border-green-100 animate-in zoom-in-95">
-                <CheckCircle2 size={18} />
-                Verified Successfully 
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 px-1">
-            <input 
-              type="checkbox" 
-              id="terms" 
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="w-5 h-5 rounded border-gray-300 text-[#093E28] focus:ring-[#093E28]" 
-            />
-            <label htmlFor="terms" className="text-sm font-medium text-slate-600 cursor-pointer">
-              I agree to the <span className="text-[#093E28] font-bold">Terms & Conditions</span>
-            </label>
-          </div>
-
-          <button 
-            type="submit"
-            disabled={!isVerified || isLoading}
-            className="w-full mt-4 sm:mt-6 bg-[#093E28] text-white py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100 disabled:opacity-50"
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700"
           >
-            {isLoading ? <Loader2 className="animate-spin" size={24} /> : <>Register <ArrowRight size={20} /></>}
-          </button>
-        </form>
+            <span className="font-bold tracking-widest uppercase text-sm">{toast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <div className="mt-6 sm:mt-8 text-center">
-          <p className="text-slate-500 font-medium">
-            Already have an account?{' '}
-            <Link to="/login" className="text-[#FF7A59] font-bold hover:underline">
-              Login
-            </Link>
-          </p>
-        </div>
+      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none mix-blend-multiply">
+        <FloatingShapes />
       </div>
+
+      <motion.div
+        style={{ perspective: 1200, transformStyle: "preserve-3d" }}
+        className="relative z-20 w-full max-w-lg my-auto"
+      >
+        <motion.div
+          onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}
+          style={{ rotateX, rotateY, transformStyle: "preserve-3d", willChange: "transform" }}
+          initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="w-full"
+        >
+          {/* ── Main Card ── */}
+          <div
+            className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-200"
+            style={{
+              boxShadow: "0 20px 40px -15px rgba(0,0,0,0.05)",
+              transform: "translate3d(0, 0, 30px)",
+              outline: "1px solid transparent",
+              backfaceVisibility: "hidden"
+            }}
+          >
+            <div style={{ transform: "translateZ(20px)", backfaceVisibility: "hidden" }}>
+
+              {/* Header */}
+              <div className="text-center mb-8">
+                <Link to="/" className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl mb-4 bg-slate-50 border border-slate-200 shadow-sm hover:scale-105 transition-transform">
+                  <ShieldCheck className="text-slate-800" size={32} />
+                </Link>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Create Profile</h1>
+                <p className="text-slate-500 font-medium text-sm sm:text-base">Register your identity on the network</p>
+              </div>
+
+              {/* Error */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 rounded-xl flex items-center justify-center bg-red-50 border border-red-100"
+                  >
+                    <span className="text-red-600 font-bold text-xs uppercase tracking-[0.1em] text-center">{error}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <form onSubmit={handleSignup} className="space-y-5">
+
+                {/* Form Fields using original text labels */}
+                <div>
+                  <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Operative Designation</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" placeholder="John Doe" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Communication Frequency</label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="email" placeholder="john@network.local" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Security Cipher</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="password" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+
+                {/* OTP Block */}
+                {isOtpSent && !isVerified && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                    className="space-y-3 p-5 rounded-2xl bg-amber-50 border border-amber-200"
+                  >
+                    <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-widest">
+                      <ShieldCheck size={16} /> Verification Required
+                    </div>
+                    <input type="text" placeholder="ENTER 4-DIGIT CODE" maxLength={4} value={formData.otp} onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, '') })}
+                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 font-bold text-center tracking-[0.5em] font-mono outline-none focus:border-slate-400 transition-all"
+                    />
+                    <p className="text-[10px] text-amber-700 text-center uppercase tracking-wider font-bold">
+                      Check your email for the security cipher
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Terms */}
+                <div className="flex items-start gap-3 px-1 mt-2">
+                  <input type="checkbox" id="terms" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="w-4 h-4 mt-0.5 rounded accent-slate-900" />
+                  <label htmlFor="terms" className="text-xs text-slate-600 cursor-pointer leading-tight font-medium">
+                    I acknowledge the <span className="text-slate-900 font-bold hover:underline">Network Terms</span> and consent to data node synchronization.
+                  </label>
+                </div>
+
+                {/* Nuclear Override Submit Button */}
+                <button type="submit" disabled={isLoading || (isOtpSent && formData.otp.length !== 4)}
+                  className="anti-pink-btn w-full mt-2 py-3.5 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                >
+                  {isLoading ? <Loader2 className="animate-spin" size={22} /> : isOtpSent ? <>Verify & Register <CheckCircle2 size={18} /></> : <>Send Verification Code <ArrowRight size={18} /></>}
+                </button>
+
+                <div className="relative mt-4">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                  <div className="relative flex justify-center"><span className="px-4 text-slate-400 uppercase tracking-widest text-xs font-bold bg-white">Or Sign Up With</span></div>
+                </div>
+
+                <button type="button" onClick={handleGoogleSignIn} disabled={isGoogleLoading}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-sm transition-all hover:bg-slate-50 disabled:opacity-60 active:scale-[0.98]"
+                >
+                  {isGoogleLoading ? <Loader2 className="animate-spin" size={20} /> : <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="G" className="w-4 h-4" />}
+                  Continue with Google
+                </button>
+              </form>
+
+              {/* Footer */}
+              <div className="mt-8 text-center pt-6 border-t border-slate-100">
+                <p className="text-slate-500 text-sm font-medium">
+                  Recognized Entity?{' '}
+                  <Link to="/login" className="text-slate-900 font-bold hover:underline uppercase tracking-wider text-xs ml-1">Access Node</Link>
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
-
-const InputField = ({ icon, label, ...props }: { icon: React.ReactNode, label: string, [key: string]: any }) => (
-  <div className="w-full">
-    <label className="text-sm font-bold text-slate-500 mb-2 block">{label}</label>
-    <div className="relative">
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
-      <input
-        required
-        {...props}
-        className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#093E28]/50 focus:border-[#093E28] outline-none text-sm sm:text-base text-slate-800 font-semibold transition-all placeholder:text-slate-400"
-      />
-    </div>
-  </div>
-);
 
 export default Signup;
