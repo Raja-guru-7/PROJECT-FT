@@ -7,15 +7,15 @@ const auth = require("../middleware/auth");
 const RegisterOTP = require("../models/RegisterOTP");
 const { sendOtpEmail } = require("../utils/mailer");
 
+const JWT_SECRET = process.env.JWT_SECRET || "aroundu_secret"; // ✅ One place define pannrom
+
 console.log("Route Registered: /send-otp");
 
 // 1. REGISTER
-
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, otp } = req.body;
 
-    // A. Verify OTP first
     const record = await RegisterOTP.findOne({ email });
     if (!record || record.otp !== otp) {
       return res.status(400).json({ msg: "Invalid or expired Verification Code" });
@@ -29,41 +29,35 @@ router.post("/register", async (req, res) => {
     user.password = await bcrypt.hash(password, salt);
     await user.save();
 
-    // Clean up used OTP
     await RegisterOTP.deleteOne({ email });
 
     const payload = { user: { id: user.id } };
-    jwt.sign(payload, "aroundu_secret", { expiresIn: "7d" }, (err, token) => {
+    jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" }, (err, token) => { // ✅
       if (err) throw err;
       res.status(201).json({ token, msg: "User Registered Securely!" });
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
 
 // 1.1. SEND REGISTRATION OTP
 router.post('/send-otp', async (req, res) => {
   const { email, name } = req.body;
-
-  // 1. Generate 4-digit OTP
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-  // 2. CRITICAL: Log to terminal so you can see it immediately
   console.log("-------------------------------");
   console.log("VERIFICATION CODE FOR", email, "IS:", otp);
   console.log("-------------------------------");
 
   try {
-    // 3. Save OTP to DB for verification
     await RegisterOTP.findOneAndUpdate(
       { email },
       { email, otp, createdAt: Date.now() },
       { upsert: true, new: true }
     );
 
-    // 4. Attempt to send email
     try {
       await sendOtpEmail(email, name || "User", otp, "Registration Verification");
     } catch (mailError) {
@@ -74,10 +68,9 @@ router.post('/send-otp', async (req, res) => {
     return res.status(200).json({ msg: "OTP sent successfully (Check Terminal/Email)" });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
-
 
 // 2. LOGIN
 router.post("/login", async (req, res) => {
@@ -90,12 +83,13 @@ router.post("/login", async (req, res) => {
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
     const payload = { user: { id: user.id } };
-    jwt.sign(payload, "aroundu_secret", { expiresIn: "7d" }, (err, token) => {
+    jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" }, (err, token) => { // ✅
       if (err) throw err;
       res.json({ token, userId: user._id, msg: "Login Success!" });
     });
   } catch (err) {
-    res.status(500).send("Server Error");
+    console.error(err.message);
+    res.status(500).json({ msg: err.message });
   }
 });
 
@@ -107,10 +101,9 @@ router.get("/user", auth, async (req, res) => {
     res.json(user);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
-
 
 // 4. UPDATE SETTINGS
 router.put("/settings", auth, async (req, res) => {
@@ -131,11 +124,11 @@ router.put("/settings", auth, async (req, res) => {
     res.json({ msg: "Settings saved!", settings: user.settings });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 4.1. UPDATE PROFILE (DISPLAY NAME & AVATAR)
+// 4.1. UPDATE PROFILE
 router.patch("/update-profile", auth, async (req, res) => {
   try {
     const { name, avatar } = req.body;
@@ -154,14 +147,12 @@ router.patch("/update-profile", auth, async (req, res) => {
     ).select("-password");
 
     if (!user) return res.status(404).json({ msg: "User not found" });
-
     return res.json(user);
   } catch (err) {
     console.error(err.message);
-    return res.status(500).json({ message: "Server Error" });
+    return res.status(500).json({ msg: err.message });
   }
 });
-
 
 // 5. CHANGE PASSWORD
 router.put("/change-password", auth, async (req, res) => {
@@ -180,7 +171,7 @@ router.put("/change-password", auth, async (req, res) => {
     res.json({ msg: "Password changed successfully!" });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
 
@@ -192,11 +183,8 @@ router.post("/google", async (req, res) => {
 
     if (!user) {
       user = new User({
-        name,
-        email,
-        googleId,
-        avatar,
-        password: googleId + "aroundu_secret", // temp dummy password
+        name, email, googleId, avatar,
+        password: googleId + "aroundu_secret",
         trustScore: 0,
         isVerified: false,
         kycStatus: 'none'
@@ -222,7 +210,7 @@ router.post("/google", async (req, res) => {
         });
       }
       const payload = { user: { id: user._id } };
-      const token = jwt.sign(payload, "aroundu_secret", { expiresIn: '7d' });
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' }); // ✅
       return res.json({
         token,
         userId: user._id,
@@ -232,15 +220,14 @@ router.post("/google", async (req, res) => {
     }
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 7. KYC STEP 1 — Save Aadhar + Send Real Email OTP
+// 7. KYC STEP 1
 router.post("/kyc/send-otp", async (req, res) => {
   try {
     const { aadharNumber, userId } = req.body;
-
     const clean = aadharNumber.replace(/\s/g, '');
     if (!/^\d{12}$/.test(clean)) {
       return res.status(400).json({ msg: 'Invalid Aadhar number' });
@@ -249,15 +236,12 @@ router.post("/kyc/send-otp", async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // Generate real 4-digit OTP
     const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
-
     user.aadharNumber = clean;
     user.kycOtp = generatedOtp;
     user.kycOtpVerified = false;
     await user.save();
 
-    // Send the email
     try {
       await sendOtpEmail(user.email, user.name, generatedOtp, "KYC Verification");
     } catch (emailError) {
@@ -268,31 +252,29 @@ router.post("/kyc/send-otp", async (req, res) => {
     res.json({ msg: 'Real OTP sent to your email successfully!' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 8. KYC STEP 2 — Verify Real OTP
+// 8. KYC STEP 2
 router.post("/kyc/verify-otp", async (req, res) => {
   try {
     const { otp, userId } = req.body;
-
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // REAL validation only - no dev mode bypass
     if (!user.kycOtp || user.kycOtp !== otp) {
       return res.status(400).json({ msg: 'Invalid OTP. Please check your email and try again.' });
     }
 
     user.kycOtpVerified = true;
-    user.kycOtp = undefined; // Security: Clear OTP after successful verify
+    user.kycOtp = undefined;
     await user.save();
 
     res.json({ msg: 'OTP verified successfully!' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: err.message });
   }
 });
 
@@ -300,22 +282,18 @@ router.post("/kyc/verify-otp", async (req, res) => {
 router.post("/kyc/resend-otp", async (req, res) => {
   try {
     const { userId } = req.body;
-
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
     if (user.kycOtpVerified) {
-      return res.status(400).json({ msg: 'OTP already verified. Please proceed to password creation.' });
+      return res.status(400).json({ msg: 'OTP already verified.' });
     }
 
-    // Generate new real 4-digit OTP
     const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
-
     user.kycOtp = newOtp;
     user.kycOtpVerified = false;
     await user.save();
 
-    // Send the email
     try {
       await sendOtpEmail(user.email, user.name, newOtp, "KYC Verification");
     } catch (emailError) {
@@ -326,15 +304,14 @@ router.post("/kyc/resend-otp", async (req, res) => {
     res.json({ msg: 'New OTP sent to your email successfully!' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 9. KYC STEP 3 — Set Password + complete KYC
+// 9. KYC STEP 3
 router.post("/kyc/set-password", async (req, res) => {
   try {
     const { password, userId } = req.body;
-
     if (!password || password.length < 6) {
       return res.status(400).json({ msg: 'Password must be at least 6 characters' });
     }
@@ -357,11 +334,11 @@ router.post("/kyc/set-password", async (req, res) => {
     res.json({ msg: 'Password created! KYC complete. Please login.' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 10. GET USER BY ID (public)
+// 10. GET USER BY ID
 router.get("/user/:userId", async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).select(
@@ -370,11 +347,12 @@ router.get("/user/:userId", async (req, res) => {
     if (!user) return res.status(404).json({ msg: "User not found" });
     res.json(user);
   } catch (err) {
-    res.status(500).send("Server Error");
+    console.error(err.message);
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 11. SIMULATE LIVENESS VERIFICATION
+// 11. LIVENESS VERIFICATION
 router.post("/verify-liveness", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -388,11 +366,11 @@ router.post("/verify-liveness", auth, async (req, res) => {
     res.json({ msg: "Liveness check passed!", user });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 12. SIMULATE PHONE VERIFICATION
+// 12. PHONE VERIFICATION
 router.post("/verify-phone", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -406,11 +384,11 @@ router.post("/verify-phone", auth, async (req, res) => {
     res.json({ msg: "Phone verified successfully!", user });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
 
-// 13. SIMULATE KYC VERIFICATION
+// 13. KYC VERIFICATION
 router.post("/verify-kyc", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -424,7 +402,7 @@ router.post("/verify-kyc", auth, async (req, res) => {
     res.json({ msg: "KYC Verified!", user });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: err.message });
   }
 });
 
