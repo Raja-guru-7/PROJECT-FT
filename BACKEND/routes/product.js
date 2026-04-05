@@ -4,7 +4,6 @@ const Product = require("../models/product");
 const auth = require("../middleware/auth");
 const { uploadImage } = require("../cloudinary");
 
-// @route POST /api/product/add
 router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
   try {
     const { title, description, category, pricePerDay, insuranceDeposit, locationAddress, lat, lng } = req.body;
@@ -27,12 +26,11 @@ router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
     const product = await newProduct.save();
     res.json({ msg: "Product listed successfully!", product });
   } catch (err) {
-    console.error("PRODUCT ADD ERROR:", err.stack); // ✅ err.stack
+    console.error("PRODUCT ADD ERROR:", err.stack);
     res.status(500).json({ msg: err.message });
   }
 });
 
-// @route GET /api/product/nearby
 router.get("/nearby", async (req, res) => {
   try {
     const { lat, lng, radius = 30 } = req.query;
@@ -45,10 +43,7 @@ router.get("/nearby", async (req, res) => {
           $maxDistance: radiusInMeters
         }
       },
-      $or: [
-        { status: 'available' },
-        { isAvailable: true }
-      ]
+      $or: [{ status: 'available' }, { isAvailable: true }]
     }).populate("owner", "name trustScore avatar");
 
     res.json(products);
@@ -58,7 +53,6 @@ router.get("/nearby", async (req, res) => {
   }
 });
 
-// @route GET /api/product/all
 router.get("/all", async (req, res) => {
   try {
     const { category, query, status } = req.query;
@@ -79,12 +73,11 @@ router.get("/all", async (req, res) => {
 
     res.json(products);
   } catch (err) {
-    console.error("ALL PRODUCTS ERROR:", err.stack);
+    console.error("ALL ERROR:", err.stack);
     res.status(500).json({ msg: err.message });
   }
 });
 
-// @route GET /api/product/:id
 router.get("/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
@@ -92,7 +85,7 @@ router.get("/:id", async (req, res) => {
     if (!product) return res.status(404).json({ msg: "Product not found" });
     res.json(product);
   } catch (err) {
-    console.error("PRODUCT BY ID ERROR:", err.stack);
+    console.error("PRODUCT ID ERROR:", err.stack);
     res.status(500).json({ msg: err.message });
   }
 });
