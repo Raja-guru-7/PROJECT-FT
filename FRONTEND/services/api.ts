@@ -1,7 +1,7 @@
 import { MOCK_ITEMS, MOCK_CURRENT_USER, MOCK_TRANSACTIONS } from '../mockData';
 import { Item, Transaction, User } from '../types';
 
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 class ApiService {
 
   private getToken(): string | null {
