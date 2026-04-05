@@ -12,7 +12,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ role }) => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'renting' | 'lending'>(role === 'OWNER' ? 'lending' : 'renting');
-  
+
   const [allTxs, setAllTxs] = useState<Transaction[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
         if (handoverTx) {
           navigate(`/handover/${handoverTx.id || handoverTx._id}`);
         }
-      } catch (err) {}
+      } catch (err) { }
     };
     const interval = setInterval(pollForHandoverReady, 5000);
     return () => clearInterval(interval);
@@ -49,11 +49,11 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
         api.getCurrentUser().catch(() => null),
         api.getSavedAssets().catch(() => [])
       ]);
-      
+
       // Combine and deduplicate
       const combined = [...rData, ...oData];
       const unique = Array.from(new Map(combined.map(item => [item._id || item.id, item])).values());
-      
+
       setAllTxs(unique);
       if (userData) setCurrentUser(userData);
       setSavedAssets(savedAssetsData);
@@ -95,7 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
     if (tab === 'renting') {
       // Allocated tab -> ONLY show items where I am the Renter
       return rId === currentUserId;
-    } 
+    }
     if (tab === 'lending') {
       // Deployed tab -> ONLY show items where I am the Owner
       return oId === currentUserId;
@@ -136,7 +136,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
               ) : filteredTransactions.length > 0 ? (
                 filteredTransactions.map((tx: any, i: number) => {
                   const isOwner = tab === 'lending';
-                  
+
                   const needsHandover = ['REQUESTED', 'PENDING_OTP', 'HANDOVER_IN_PROGRESS', 'OTP_VERIFIED', 'IN_PROGRESS'].includes(tx.status);
                   const needsReturn = ['RETURN_INITIATED', 'RETURN_IN_PROGRESS'].includes(tx.status);
                   const isReadyForReturn = ['ACTIVE', 'HANDOVER_COMPLETED', 'PICKED_UP'].includes(tx.status);
@@ -212,7 +212,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                   );
                 })
               ) : (
-                <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-slate-100 p-12 sm:p-16 rounded-[2rem] text-center shadow-sm">
+                <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-slate-100 p-8 sm:p-16 rounded-[2rem] text-center shadow-sm">
                   {tab === 'lending' ? (
                     <>
                       <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
@@ -236,7 +236,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
           <div className="space-y-6">
             {/* INTHA REPUTATION MOTION DIV-A REPLACE PANNUNGA */}
             <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-              <div 
+              <div
                 onClick={() => navigate('/trust')}
                 className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group"
               >

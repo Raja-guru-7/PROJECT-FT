@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, RefreshCcw, CheckCircle2, Video, ShieldAlert, Square } from 'lucide-react';
+import { Camera, RefreshCcw, CheckCircle2, Video, ShieldAlert, Square, SwitchCamera } from 'lucide-react';
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
@@ -13,6 +13,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
   const [isRecording, setIsRecording] = useState(false);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0); // Optional: track seconds
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -33,17 +34,35 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
     };
   }, []);
 
-  const startCamera = async () => {
+  const startCamera = async (overrideMode?: 'user' | 'environment') => {
+    const currentMode = overrideMode || facingMode;
     try {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' }, 
+        video: { facingMode: currentMode }, 
         audio: mode === 'video'
       });
       setStream(s);
+      if (overrideMode) setFacingMode(overrideMode);
     } catch (err) {
-      console.error('Camera access denied', err);
-      alert('Camera/Microphone access denied. Please allow permissions.');
+      console.error('Preferred camera access denied, attempting fallback', err);
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true, 
+          audio: mode === 'video'
+        });
+        setStream(fallbackStream);
+      } catch (fallbackErr) {
+        console.error('All camera access failed', fallbackErr);
+        alert('Camera/Microphone access denied. Please allow permissions.');
+      }
     }
+  };
+
+  const handleToggleFacingMode = () => {
+    startCamera(facingMode === 'user' ? 'environment' : 'user');
   };
 
   const stopCamera = () => {
@@ -139,7 +158,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
             Please capture a live {mode === 'video' ? 'video' : 'photo'} proof for security and community trust.
           </p>
           <button
-            onClick={startCamera}
+            onClick={() => startCamera()}
             style={{ backgroundColor: '#000000', color: '#ffffff' }}
             className="px-8 py-3 rounded-full font-semibold text-sm hover:opacity-80 transition-all shadow-md"
           >
@@ -174,7 +193,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
         </div>
       ) : (
         <div style={{ backgroundColor: '#000000' }} className="w-full h-full relative flex items-center justify-center">
-          <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
+          <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
 
           <div className="absolute top-6 left-6 flex gap-2">
             <div style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md">
@@ -210,8 +229,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
               </div>
             </button>
 
-            <button disabled={isRecording} onClick={() => {}} style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', opacity: isRecording ? 0.5 : 1 }} className="w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition-all">
-              <RefreshCcw size={18} color="#ffffff" />
+            <button disabled={isRecording} onClick={handleToggleFacingMode} style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', opacity: isRecording ? 0.5 : 1 }} className="w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition-all">
+              <SwitchCamera size={18} color="#ffffff" />
             </button>
           </div>
         </div>

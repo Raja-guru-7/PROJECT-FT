@@ -122,7 +122,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
             </button>
 
             {isProfileOpen && (
-              <div className="absolute top-14 right-0 w-64 p-2 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100">
+              <div className="absolute top-14 right-0 w-60 sm:w-64 p-2 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right">
                 <div className="p-3 mb-1 flex items-center gap-3 border-b border-slate-50">
                   <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full object-cover bg-slate-100" onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackAvatar; }} />
                   <div>

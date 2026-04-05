@@ -48,7 +48,7 @@ const VerifyOTP: React.FC = () => {
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.4 }} className="w-full max-w-md relative z-10">
 
         {/* White Bento Card */}
-        <div className="p-8 sm:p-10 text-center bg-white border border-slate-200 rounded-[2.5rem] shadow-sm">
+        <div className="p-6 sm:p-10 text-center bg-white border border-slate-200 rounded-[2.5rem] shadow-sm">
 
           <button onClick={() => navigate('/signup')}
             className="absolute left-6 top-6 flex items-center gap-1 text-xs uppercase font-bold tracking-widest text-slate-400 hover:text-slate-700 transition-colors">

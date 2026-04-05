@@ -248,7 +248,7 @@ const Explore: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
-              className="relative w-full sm:max-w-md h-full bg-white p-8 flex flex-col shadow-2xl rounded-l-[2rem]"
+              className="relative w-[85vw] sm:max-w-md h-full bg-white p-6 sm:p-8 flex flex-col shadow-2xl rounded-l-[1.5rem] sm:rounded-l-[2rem] ml-auto"
             >
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Filters</h2>
@@ -292,27 +292,29 @@ const Explore: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
           <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800">Explore Collection</h1>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-auto flex-grow">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search items..." className="pl-11 pr-4 py-3 rounded-full bg-white text-sm font-medium text-slate-900 border border-slate-100 focus:outline-none focus:border-slate-300" style={{ color: '#000', WebkitTextFillColor: '#000' }} />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search items..." className="w-full pl-11 pr-4 py-3 rounded-full bg-white text-sm font-medium text-slate-900 border border-slate-100 focus:outline-none focus:border-slate-300" style={{ color: '#000', WebkitTextFillColor: '#000' }} />
             </div>
 
-            <button onClick={syncLocation} className="flex items-center gap-2 px-4 py-3 rounded-full bg-white border border-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-              {isLocating ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} className="text-blue-500" />}
-              Near Me
-            </button>
+            <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+              <button onClick={syncLocation} className="flex-1 sm:flex-none flex items-center justify-center min-w-max gap-2 px-4 py-3 rounded-full bg-white border border-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+                {isLocating ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} className="text-blue-500" />}
+                Near Me
+              </button>
 
-            <div className="flex items-center bg-white border border-slate-100 rounded-full p-1 shadow-sm">
-              <button onClick={() => setViewMode('grid')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
-                <LayoutGrid size={16} /> Grid
-              </button>
-              <button onClick={() => setViewMode('map')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
-                <MapIcon size={16} /> Map
-              </button>
+              <div className="flex-1 sm:flex-none flex items-center min-w-max bg-white border border-slate-100 rounded-full p-1 shadow-sm">
+                <button onClick={() => setViewMode('grid')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
+                  <LayoutGrid size={16} /> Grid
+                </button>
+                <button onClick={() => setViewMode('map')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
+                  <MapIcon size={16} /> Map
+                </button>
+              </div>
+
+              <button onClick={() => setShowFilters(true)} className="p-3 shrink-0 rounded-full bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Filter size={18} className="text-slate-600" /></button>
             </div>
-
-            <button onClick={() => setShowFilters(true)} className="p-3 rounded-full bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Filter size={18} className="text-slate-600" /></button>
           </div>
         </div>
 

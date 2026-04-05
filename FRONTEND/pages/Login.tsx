@@ -140,7 +140,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         >
           {/* ── Main Card ── */}
           <div
-            className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-200"
+            className="bg-white p-6 sm:p-10 rounded-[2.5rem] border border-slate-200"
             style={{
               boxShadow: "0 20px 40px -15px rgba(0,0,0,0.05)",
               transform: "translate3d(0, 0, 30px)",

@@ -264,7 +264,7 @@ const Handover: React.FC = () => {
                     {tx.status === 'HANDOVER_IN_PROGRESS' || tx.status === 'OTP_VERIFIED' || isReturnFlow ? (
                       <CameraCapture label="Start Recording" mode="video" onCapture={(blob) => setOwnerVideo(blob)} />
                     ) : (
-                      <div className="p-12 text-center" style={{ backgroundColor: '#f8fafc' }}>
+                      <div className="p-6 sm:p-12 text-center" style={{ backgroundColor: '#f8fafc' }}>
                         <Loader2 className="animate-spin mx-auto mb-4" size={32} color="#94a3b8" />
                         <p className="font-semibold text-sm" style={{ color: '#0f172a' }}>Waiting for Renter Authorization...</p>
                       </div>
@@ -277,7 +277,7 @@ const Handover: React.FC = () => {
               ) : (
                 <div className="text-center space-y-6">
                   <StepHeader icon={<Video size={20} color="#000000" />} title="Owner Scanning..." subtitle="Owner is recording the baseline telemetry." />
-                  <div className="rounded-2xl p-8" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <div className="rounded-2xl p-6 sm:p-8" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <Loader2 className="animate-spin mx-auto mb-4" size={32} color="#94a3b8" />
                     <p className="font-semibold text-sm" style={{ color: '#0f172a' }}>Syncing Optical Data</p>
                   </div>
@@ -313,7 +313,7 @@ const Handover: React.FC = () => {
                 // ✅ FIX: Strict Inline Styling to Prevent Purple Background
                 <div className="text-center space-y-6">
                   <StepHeader icon={<Loader2 className="animate-spin" size={20} color="#64748b" />} title="Waiting for Renter" subtitle="Renter is verifying condition." />
-                  <div className="rounded-2xl p-8 flex flex-col items-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <div className="rounded-2xl p-6 sm:p-8 flex flex-col items-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
                       <CheckCircle size={32} color="#22c55e" />
                     </div>

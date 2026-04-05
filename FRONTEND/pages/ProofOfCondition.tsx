@@ -80,7 +80,7 @@ const VideoUploadBox: React.FC<{ title: string; onUpload: (f: File) => void; isU
 
   return (
     <div onClick={() => !isUploaded && !isUploading && fileInputRef.current?.click()}
-      className={`flex flex-col items-center justify-center gap-4 p-8 rounded-3xl cursor-pointer transition-all border-2 bg-white ${isUploaded ? 'border-solid border-green-200 shadow-sm' : 'border-dashed border-slate-200 hover:bg-slate-50'
+      className={`flex flex-col items-center justify-center gap-4 p-6 sm:p-8 rounded-3xl cursor-pointer transition-all border-2 bg-white ${isUploaded ? 'border-solid border-green-200 shadow-sm' : 'border-dashed border-slate-200 hover:bg-slate-50'
         }`} style={{ minHeight: '220px' }}>
       {isUploaded ? (
         <div className="flex flex-col items-center gap-2 text-green-600">
