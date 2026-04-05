@@ -85,11 +85,11 @@ class ApiService {
       if (!res.ok) throw new Error(json.msg);
       return json.map((p: any) => ({
         id: p._id,
-        owner: p.owner?._id || p.owner,           // ✅ for ItemDetail ownerId fix
+        owner: p.owner?._id || p.owner,
         ownerId: p.owner?._id || p.owner,
         ownerName: p.owner?.name || 'Unknown',
         ownerTrustScore: p.owner?.trustScore || 30,
-        title: p.title,                            // ✅ Fixed: was p.name
+        title: p.title,
         description: p.description,
         category: p.category,
         pricePerDay: p.pricePerDay,
@@ -114,11 +114,11 @@ class ApiService {
       const p = await res.json();
       if (!res.ok) throw new Error(p.msg);
       return {
-        id: p._id,         // ✅ for View Profile navigation
+        id: p._id,
         ownerId: p.owner?._id || p.owner,
         ownerName: p.owner?.name || 'Unknown',
         ownerTrustScore: p.owner?.trustScore || 30,
-        title: p.title,                            // ✅ Fixed: was p.name
+        title: p.title,
         description: p.description,
         category: p.category,
         pricePerDay: p.pricePerDay,
@@ -240,6 +240,31 @@ class ApiService {
       if (!res.ok) throw new Error('Complete failed');
     } catch {
       console.log(`Completing TX ${txId}`);
+    }
+  }
+
+  // ✅ ADDED THESE NEW FUNCTIONS FOR RETURN HANDOVER
+  async requestReturn(txId: string): Promise<void> {
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/${txId}/request-return`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+      if (!res.ok) throw new Error('Request return failed');
+    } catch {
+      console.log(`Requesting return for TX ${txId}`);
+    }
+  }
+
+  async completeReturn(txId: string): Promise<void> {
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/${txId}/complete-return`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+      if (!res.ok) throw new Error('Complete return failed');
+    } catch {
+      console.log(`Completing return for TX ${txId}`);
     }
   }
 }
