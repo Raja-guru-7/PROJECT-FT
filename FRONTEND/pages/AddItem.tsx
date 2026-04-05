@@ -57,13 +57,7 @@ const AddItem: React.FC = () => {
           );
           const data = await res.json();
           const address = data.display_name || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-
-          setFormData(prev => ({
-            ...prev,
-            location: address,
-            lat: latitude,
-            lng: longitude
-          }));
+          setFormData(prev => ({ ...prev, location: address, lat: latitude, lng: longitude }));
         } catch (err) {
           setFormData(prev => ({
             ...prev,
@@ -77,7 +71,7 @@ const AddItem: React.FC = () => {
       },
       (err) => {
         setLocationLoading(false);
-        if (err.code === 1) alert("Please allow Location Access in your browser settings to detect exact location.");
+        if (err.code === 1) alert("Please allow Location Access in your browser settings.");
         else alert("Location detection failed. Please try again.");
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -88,6 +82,7 @@ const AddItem: React.FC = () => {
     e.preventDefault();
     if (!videoProof) return;
     setIsDeploying(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       const data = new FormData();
@@ -98,7 +93,7 @@ const AddItem: React.FC = () => {
       data.append('locationAddress', formData.location);
       data.append('lat', String(formData.lat));
       data.append('lng', String(formData.lng));
-      data.append('image', videoProof, 'proof.webm');
+      data.append('image', videoProof, 'proof.jpg'); // ✅ proof.webm → proof.jpg
 
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/product/add`, {
         method: 'POST',
@@ -148,7 +143,6 @@ const AddItem: React.FC = () => {
       `}</style>
 
       <div className="max-w-3xl mx-auto px-4 py-12">
-
         <h1 className="text-3xl font-bold text-slate-900 mb-10">List Your Item</h1>
 
         {error && (
@@ -233,8 +227,6 @@ const AddItem: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-8 py-4">
-
-                {/* Step 2: Verification Section */}
                 <div className="text-center space-y-3 mb-6">
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }} className="w-16 h-16 rounded-[1.25rem] flex items-center justify-center mx-auto mb-4 shadow-sm">
                     <ShieldCheck size={32} color="#0f172a" />
@@ -247,14 +239,12 @@ const AddItem: React.FC = () => {
                   <CameraCapture label="Begin Scan" mode="photo" onCapture={(blob) => setVideoProof(blob)} />
                 </div>
 
-                {/* Success Message */}
                 {videoProof && (
                   <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce3', color: '#15803d' }} className="flex items-center justify-center gap-2 p-4 rounded-xl text-sm font-semibold">
                     <CheckCircle2 size={20} color="#15803d" /> Proof captured successfully!
                   </div>
                 )}
 
-                {/* Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
                   <button type="button" onClick={() => setStep(1)} disabled={isDeploying}
                     style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', boxShadow: 'none' }}

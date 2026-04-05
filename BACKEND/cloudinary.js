@@ -18,13 +18,13 @@ const videoStorage = new CloudinaryStorage({
   },
 });
 
-// Image storage config
+// Image storage config — ✅ Fixed
 const imageStorage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'aroundu/images',
-    resource_type: 'image',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    resource_type: 'auto',  // ✅ 'image' → 'auto'
+    // allowed_formats removed ✅
   },
 });
 
