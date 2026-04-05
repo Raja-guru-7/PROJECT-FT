@@ -36,7 +36,7 @@ export interface User {
 export interface Item {
   id: string;
   ownerId: string;
-  owner: any;
+  owner?: any;
   ownerName: string;
   ownerTrustScore: number;
   ownerAvatar?: string;

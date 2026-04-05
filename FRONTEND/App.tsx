@@ -19,7 +19,7 @@ import AiAssistant from './components/AiAssistant';
 import UserProfile from './pages/UserProfile';
 import ReturnHandover from './pages/ReturnHandover';
 import KYC from './src/pages/KYC';
-import TrustScore from './src/pages/Trustscore';
+import TrustScore from './src/pages/TrustScore';
 import { api } from './services/api';
 import { Loader2 } from 'lucide-react';
 
