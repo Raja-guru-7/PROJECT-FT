@@ -1,32 +1,27 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com', // Explicit Google SMTP host
-  port: 465,              // Secure port for Render/Production
-  secure: true,           // true for 465, false for other ports
-  pool: true,             // Handle multiple requests efficiently
-  connectionTimeout: 10000, 
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  family: 4, // 🔥 THE MAGIC FIX: Ithu thaan IPv6-a block panni IPv4-la anuppum!
   auth: {
     user: String(process.env.GMAIL_USER).trim(),
-    pass: String(process.env.GMAIL_APP_PASSWORD).trim() // Must be 16-digit App Password
+    pass: String(process.env.GMAIL_APP_PASSWORD).trim()
   },
   tls: {
-    rejectUnauthorized: false // Helps bypass strict node TLS checks on Render
+    rejectUnauthorized: false
   }
 });
 
-// Verify connection on startup
+// Verify connection
 transporter.verify((error, success) => {
   if (error) {
     console.error("❌ SMTP Connection Error:", error.message);
-    if (error.code === 'EAUTH') {
-      console.error("👉 Tip: Check your GMAIL_USER and GMAIL_APP_PASSWORD in Render Environment Settings. Ensure you are using a 16-digit App Password, not your normal login password.");
-    }
   } else {
-    console.log("✅ SMTP Server is ready to take our messages");
+    console.log("✅ SMTP Server is ready");
   }
 });
-
 
 const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification", message = "Your verification code is:") => {
   try {
@@ -46,7 +41,6 @@ const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification"
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 12px; text-align: center;">
             <strong>Security Notice:</strong> Never share this code with anyone else. 
-            AroundU staff will never ask for this code.
           </p>
         </div>
       `
@@ -54,7 +48,7 @@ const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification"
     console.log(`✅ Email successfully sent to ${toEmail}`);
   } catch (err) {
     console.error("❌ Error sending email inside sendOtpEmail function:", err);
-    throw err; // Re-throw to be caught by the route handler
+    throw err; 
   }
 };
 
