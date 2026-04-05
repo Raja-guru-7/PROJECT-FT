@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification", message = "Your verification code is:") => {
   try {
     const data = await resend.emails.send({
-      from: 'onboarding@resend.dev', // ⚠️ Note: Ippothiki ithu apdiye irukatum.
+      from: 'AroundU Security <support@aroundu.online>', // ⚠️ Note: Ippothiki ithu apdiye irukatum.
       to: toEmail,
       subject: subject,
       html: `
