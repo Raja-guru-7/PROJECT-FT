@@ -6,6 +6,9 @@ import { FloatingShapes } from '../../components/3d/FloatingShapes';
 
 type Step = 'aadhar' | 'otp' | 'password' | 'success';
 
+// 🔥 FIXED: Added dynamic Base URL to bypass localhost
+const BASE_URL = (import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com') + '/api';
+
 const KYC: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('aadhar');
@@ -49,15 +52,14 @@ const KYC: React.FC = () => {
     e.preventDefault(); setAadharError('');
     if (!/^\d{12}$/.test(aadharNumber)) { setAadharError('Aadhaar number must be exactly 12 digits'); return; }
     
-    // FIXED: Removed the aggressive navigate('/login') that was kicking you out. 
-    // Now it just warns you but lets the backend handle the rest.
     if (!userId) { 
         console.warn('No User ID found in storage, proceeding anyway to check backend response.'); 
     }
     
     setAadharLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/kyc/send-otp', { 
+      // 🔥 FIXED: Replaced localhost with BASE_URL
+      const res = await fetch(`${BASE_URL}/auth/kyc/send-otp`, { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({ aadharNumber, userId }) 
@@ -73,7 +75,12 @@ const KYC: React.FC = () => {
     if (otp.length !== 4) { setOtpError('Enter 4-digit OTP'); return; }
     setOtpLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/kyc/verify-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ otp, userId }) });
+      // 🔥 FIXED: Replaced localhost with BASE_URL
+      const res = await fetch(`${BASE_URL}/auth/kyc/verify-otp`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ otp, userId }) 
+      });
       const data = await res.json();
       if (res.ok) setStep('password'); else setOtpError(data.msg || 'Invalid OTP');
     } catch { setOtpError('Network error. Please try again.'); }
@@ -86,7 +93,12 @@ const KYC: React.FC = () => {
     if (password !== confirmPassword) { setPasswordError('Passwords do not match'); return; }
     setPasswordLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/kyc/set-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, userId }) });
+      // 🔥 FIXED: Replaced localhost with BASE_URL
+      const res = await fetch(`${BASE_URL}/auth/kyc/set-password`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ password, userId }) 
+      });
       const data = await res.json();
       if (res.ok) { localStorage.removeItem('pendingUserId'); setStep('success'); setTimeout(() => navigate('/login'), 2000); }
       else setPasswordError(data.msg || 'Failed to set password');
@@ -97,7 +109,12 @@ const KYC: React.FC = () => {
   const handleResendOtp = async () => {
     setOtpError(''); setOtpLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/kyc/resend-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+      // 🔥 FIXED: Replaced localhost with BASE_URL
+      const res = await fetch(`${BASE_URL}/auth/kyc/resend-otp`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ userId }) 
+      });
       const data = await res.json();
       if (!res.ok) setOtpError(data.msg || 'Failed to resend OTP');
     } catch { setOtpError('Network error. Please try again.'); }
