@@ -40,6 +40,12 @@ const ProductSchema = new mongoose.Schema({
     ref: "Transaction",
     default: null
   },
+  // --- IMPORTANT MISSING FIELD ---
+  savedAssets: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Asset"
+  }],
+  // -------------------------------
   imageUrl: {
     type: String,
     default: ''
