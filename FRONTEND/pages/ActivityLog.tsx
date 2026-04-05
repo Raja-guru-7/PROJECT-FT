@@ -1,135 +1,204 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Video, Search, Loader2 } from 'lucide-react';
+import { ChevronLeft, Video, Search, Loader2, X, Play } from 'lucide-react';
 import { api } from '../services/api';
-import { Transaction } from '../types';
+import { Transaction, User } from '../types';
 
-const ActivityLog: React.FC = () => {
+const cardStyle = {
+  background: '#ffffff',
+  borderRadius: '1.5rem',
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+};
+
+export const ActivityLog: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [videoModal, setVideoModal] = useState<{ url: string; label: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const data = await api.getTransactions('RENTER');
-        setTransactions(data);
-      } catch (err) {
-        console.error('Failed to fetch transactions');
-      } finally {
-        setLoading(false);
+        const user = await api.getCurrentUser().catch(() => null);
+        if (user) setCurrentUser(user);
+
+        const [rTxs, oTxs] = await Promise.all([
+          api.getTransactions('RENTER').catch(() => []),
+          api.getTransactions('OWNER').catch(() => [])
+        ]);
+        const all = [...rTxs, ...oTxs];
+        const unique = Array.from(new Map(all.map(item => [item._id || item.id, item])).values());
+        
+        setTransactions(unique);
       }
+      catch (err) { console.error('Failed to fetch transactions'); }
+      finally { setLoading(false); }
     };
     fetchTransactions();
   }, []);
 
-  const filteredLogs = useMemo(() => {
-    return transactions.filter(tx =>
-      tx.itemTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, transactions]);
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const txs = await api.getTransactions('OWNER');
+        const handoverTx = txs.find((tx: any) =>
+          (tx.status === 'HANDOVER_IN_PROGRESS' || tx.status === 'OTP_VERIFIED') && !tx.ownerVideoUrl
+        );
+        if (handoverTx) {
+          navigate(`/handover/${handoverTx.id || handoverTx._id}`);
+        }
+      } catch (err) {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [navigate]);
+
+  const filteredLogs = useMemo(() => transactions.filter(tx =>
+    tx.itemTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tx.id.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [searchQuery, transactions]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8 group"
-      >
-        <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-        Back
+    <div className="min-h-screen w-full bg-[#F5F5F7] pb-24 relative">
+      <button type="button" onClick={() => navigate(-1)} className="absolute top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
+        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
       </button>
+      <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-8 sm:py-12">
 
-      <div className="flex flex-col sm:flex-row items-start justify-between gap-4 sm:gap-8 mb-8 sm:mb-12">
-        <div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-slate-900">Activity Log</h1>
-          <p className="mt-2 sm:mt-4 text-sm sm:text-base lg:text-lg text-slate-600">A secure audit trail of all your network transactions.</p>
-        </div>
-        <div className="relative w-full sm:w-64 md:w-80">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search by item or TX ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-full py-2.5 sm:py-3 pl-10 sm:pl-12 pr-3 sm:pr-4 text-sm sm:text-base font-semibold"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl soft-shadow overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin text-[#093E28]" size={36} />
-          </div>
-        ) : (
-          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-            <table className="w-full text-left min-w-[600px] sm:min-w-[700px] lg:min-w-[800px]">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Item / Transaction ID</th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Proofs</th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredLogs.length > 0 ? filteredLogs.map(tx => (
-                  <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-5">
-                      <p className="font-bold text-sm sm:text-base text-slate-800 line-clamp-1">{tx.itemTitle}</p>
-                      <p className="text-xs text-slate-500 font-mono">{tx.id}</p>
-                    </td>
-                    <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-5">
-                      <div className="flex gap-1 sm:gap-2">
-                        <ProofButton icon={<Video size={12} />} label="Dispatch" />
-                        <ProofButton icon={<Video size={12} />} label="Receipt" />
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-5">
-                      <div className={`inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${
-                        tx.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                        tx.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' :
-                        tx.status === 'REQUESTED' ? 'bg-purple-100 text-purple-700' :
-                        'bg-amber-100 text-amber-700'
-                      }`}>
-                        <div className={`w-2 h-2 rounded-full ${
-                          tx.status === 'ACTIVE' ? 'bg-green-500' :
-                          tx.status === 'COMPLETED' ? 'bg-blue-500' :
-                          tx.status === 'REQUESTED' ? 'bg-purple-500' :
-                          'bg-amber-500'
-                        }`} />
-                        {tx.status.replace(/_/g, ' ')}
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-5 text-right">
-                      <p className="font-bold text-sm sm:text-base text-slate-800">₹{tx.totalAmount}</p>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={4} className="px-3 sm:px-4 lg:px-6 py-12 sm:py-20 text-center">
-                      <p className="font-semibold text-slate-500">
-                        {searchQuery ? 'No matching activity found.' : 'No transactions yet — start renting!'}
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* Video Modal */}
+        {videoModal && (
+          <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div style={cardStyle} className="max-w-2xl w-full overflow-hidden shadow-2xl">
+              <div className="p-4 flex items-center justify-between border-b border-slate-100 bg-white">
+                <p className="font-bold text-slate-800 uppercase tracking-wide text-xs">{videoModal.label}</p>
+                <button onClick={() => setVideoModal(null)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="bg-slate-900 w-full flex justify-center">
+                <video src={videoModal.url} controls autoPlay className="w-full max-h-[60vh]" />
+              </div>
+            </div>
           </div>
         )}
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-800">Activity Log</h1>
+            <p className="mt-2 text-sm text-slate-500 font-medium">A secure audit trail of all your network transactions.</p>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input type="text" placeholder="Search by item or TX ID..." value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-full py-3 pl-11 pr-4 text-sm font-medium text-slate-900 placeholder-slate-400 outline-none focus:border-slate-400 transition-colors shadow-sm"
+              style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }} />
+          </div>
+        </div>
+
+        <div style={cardStyle} className="overflow-hidden bg-white">
+          {loading ? (
+            <div className="flex items-center justify-center py-32"><Loader2 className="animate-spin text-slate-400" size={40} /></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse" style={{ minWidth: '700px' }}>
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    {['Item / Transaction ID', 'Proofs', 'Status', 'Amount'].map((h, i) => (
+                      <th key={h} className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider"
+                        style={{ textAlign: i === 3 ? 'right' : 'left' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLogs.length > 0 ? filteredLogs.map(tx => (
+                    <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-5 cursor-pointer" onClick={() => {
+                        if (tx.status === 'OTP_VERIFIED' || tx.status === 'HANDOVER_IN_PROGRESS') {
+                          navigate(`/handover/${tx._id || tx.id}`); 
+                        }
+                      }}>
+                        <p className="font-semibold text-slate-800 mb-1 group-hover:text-black transition-colors">{tx.itemTitle}</p>
+                        <p className="text-xs font-mono text-slate-400 group-hover:text-slate-500 transition-colors">{tx.id}</p>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex gap-2">
+                          <ProofButton icon={<Video size={14} />} label="Dispatch" hasVideo={!!(tx as any).ownerVideoUrl}
+                            onClick={() => { const u = (tx as any).ownerVideoUrl; if (u) setVideoModal({ url: u, label: `Dispatch — ${tx.itemTitle}` }); }} />
+                          <ProofButton icon={<Video size={14} />} label="Receipt" hasVideo={!!(tx as any).renterVideoUrl}
+                            onClick={() => { const u = (tx as any).renterVideoUrl; if (u) setVideoModal({ url: u, label: `Receipt — ${tx.itemTitle}` }); }} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        {getStatusBadge(tx.status)}
+                        {(tx.status === 'HANDOVER_IN_PROGRESS' || tx.status === 'OTP_VERIFIED') && !(tx as any).ownerVideoUrl && String(currentUser?._id || currentUser?.id) === String((tx as any).ownerId?._id || (tx as any).ownerId) && (
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx.id || tx._id}`); }} className="mt-3 block px-4 py-1.5 bg-black text-white text-[11px] uppercase tracking-wide font-bold rounded-full hover:bg-slate-800 transition-all shadow-sm">
+                            Complete Video Scan
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <p className="font-bold text-slate-800">₹{tx.totalAmount}</p>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={4} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <Search className="text-slate-300 mb-3" size={40} />
+                        <p className="font-medium text-slate-500">
+                          {searchQuery ? 'No matching activity found.' : 'No transactions yet — start renting!'}
+                        </p>
+                      </div>
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-const ProofButton = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
-  <button className="flex items-center gap-1.5 sm:gap-2 bg-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-md border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-xs">
-    <span className="text-slate-500">{icon}</span>
-    <span className="text-xs font-bold text-slate-600">{label}</span>
+// ✅ FIX: Used Inline Styles to completely prevent Purple/Blue override bugs
+const getStatusStyles = (status: string) => {
+  let bg = '#fffbeb'; let text = '#b45309'; let border = '#fde68a'; let dot = '#f59e0b'; // Default Amber
+  if (status === 'ACTIVE' || status === 'HANDOVER_COMPLETED') {
+    bg = '#f0fdf4'; text = '#15803d'; border = '#bbf7d0'; dot = '#22c55e'; // Green
+  } else if (status === 'COMPLETED') {
+    bg = '#f8fafc'; text = '#334155'; border = '#e2e8f0'; dot = '#94a3b8'; // Slate
+  } else if (status === 'OTP_VERIFIED' || status === 'HANDOVER_IN_PROGRESS' || status === 'RETURN_IN_PROGRESS' || status === 'RETURN_INITIATED') {
+    bg = '#0f172a'; text = '#ffffff'; border = '#0f172a'; dot = '#ffffff'; // Black
+  } else if (status === 'REQUESTED' || status === 'PENDING_OTP') {
+    bg = '#f8fafc'; text = '#475569'; border = '#e2e8f0'; dot = '#94a3b8'; // Light Slate
+  }
+  return { bg, text, border, dot };
+};
+
+const getStatusBadge = (status: string) => {
+  const styles = getStatusStyles(status);
+  return (
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" 
+         style={{ backgroundColor: styles.bg, color: styles.text, borderColor: styles.border }}>
+      <div className={`w-1.5 h-1.5 rounded-full ${status.includes('IN_PROGRESS') || status === 'OTP_VERIFIED' ? 'animate-pulse' : ''}`} 
+           style={{ backgroundColor: styles.dot }} />
+      {status.replace(/_/g, ' ')}
+    </div>
+  );
+}
+
+const ProofButton = ({ icon, label, hasVideo, onClick }: { icon: React.ReactNode; label: string; hasVideo: boolean; onClick: () => void }) => (
+  <button onClick={onClick} disabled={!hasVideo}
+    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${hasVideo
+        ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm cursor-pointer'
+        : 'bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed'
+      }`}>
+    {icon}
+    <span>{label}</span>
+    {hasVideo && <Play size={10} className="ml-1 text-slate-400" />}
   </button>
 );
 

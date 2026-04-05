@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Lock, CreditCard, Bell, UserCheck, KeyRound, Fingerprint, Database, Loader2, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Lock, CreditCard, Bell, UserCheck, KeyRound, Database, Loader2, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
+
+const cardStyle = {
+  background: '#ffffff',
+  borderRadius: '1.5rem',
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+  padding: '1.5rem'
+};
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -9,244 +17,196 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [settings, setSettings] = useState({ biometricLogin: true, stealthMode: false, metadataEncryption: true, handoverAlerts: true, escrowSummaries: false });
+  const [userData, setUserData] = useState<any>(null);
 
-  const [settings, setSettings] = useState({
-    biometricLogin: true,
-    stealthMode: false,
-    metadataEncryption: true,
-    handoverAlerts: true,
-    escrowSummaries: false,
-  });
-
-  // Load settings from backend
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const user = await api.getCurrentUser();
-        if ((user as any).settings) {
-          setSettings((user as any).settings);
-        }
-      } catch (err) {
-        console.error('Failed to load settings');
-      } finally {
-        setLoading(false);
-      }
+        setUserData(user);
+        if ((user as any).settings) setSettings((user as any).settings);
+      } catch (err) { console.error('Failed to load settings'); }
+      finally { setLoading(false); }
     };
     fetchSettings();
   }, []);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const handleToggle = async (key: keyof typeof settings) => {
-    const newSettings = { ...settings, [key]: !settings[key] };
+    const newValue = !settings[key];
+    const newSettings = { ...settings, [key]: newValue };
     setSettings(newSettings);
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/auth/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token || ''
-        },
-        body: JSON.stringify({ [key]: !settings[key] })
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/user/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
+        body: JSON.stringify({ [key]: newValue })
       });
-      const json = await res.json();
-      if (res.ok) showToast('✅ Settings saved!');
-      else showToast('❌ Save failed');
-    } catch {
-      showToast('❌ Save failed');
-    } finally {
-      setSaving(false);
-    }
+      if (res.ok) showToast('Preferences Synced');
+      else { showToast('Sync failed'); setSettings(settings); }
+    } catch { showToast('Network Error'); setSettings(settings); }
+    finally { setSaving(false); }
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Loader2 className="animate-spin text-[#093E28]" size={40} />
+    <div className="flex items-center justify-center min-h-screen bg-[#F5F5F7]">
+      <Loader2 className="animate-spin text-slate-400" size={40} />
     </div>
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#093E28] text-white px-6 py-3 rounded-xl shadow-2xl z-[100] font-bold">
-          {toast}
-        </div>
-      )}
-
-      {showPasswordModal && (
-        <ChangePasswordModal 
-          onClose={() => setShowPasswordModal(false)} 
-          onSuccess={() => { setShowPasswordModal(false); showToast('✅ Password changed!'); }}
-        />
-      )}
-
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8 group"
-      >
-        <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-        Back
+    <div className="w-full min-h-screen bg-[#F5F5F7] pb-24 relative">
+      <button type="button" onClick={() => navigate(-1)}
+        className="absolute top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
+        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
       </button>
+      <div className="max-w-[800px] mx-auto px-4 md:px-8 py-8 sm:py-12">
 
-      <div className="mb-12">
-        <h1 className="text-5xl font-black tracking-tighter text-slate-900 mb-4">Settings</h1>
-        <p className="text-lg text-slate-600">Manage your account, security, and notification preferences.</p>
-        {saving && <p className="text-sm text-amber-600 font-semibold mt-2">Saving...</p>}
-      </div>
+        {showPasswordModal && (
+          <ChangePasswordModal
+            onClose={() => setShowPasswordModal(false)}
+            onSuccess={() => { setShowPasswordModal(false); showToast('Password changed!'); }}
+          />
+        )}
 
-      <div className="space-y-10">
-        <SettingsSection icon={<UserCheck />} title="Identity & Verification">
-          <div className="bg-green-50 text-green-700 p-4 rounded-xl font-semibold flex items-center gap-3">
-            <ShieldCheck size={20} />
-            Your account is active and secured.
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-800">Settings</h1>
+            {saving && <Loader2 size={16} className="animate-spin text-slate-400" />}
           </div>
-        </SettingsSection>
+          <p className="text-sm text-slate-500 font-medium">Manage your account, security, and notification preferences.</p>
+        </div>
 
-        <SettingsSection icon={<KeyRound />} title="Access & Security">
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="w-full flex items-center justify-between py-3 px-1 hover:bg-gray-50 rounded-lg transition-all"
-          >
-            <span className="font-semibold text-slate-700 flex items-center gap-2">
-              <Lock size={16} /> Change Password
-            </span>
-            <ChevronLeft size={20} className="text-slate-400 rotate-180" />
-          </button>
-          <ToggleItem
-            label="Biometric Login"
-            sub="Use FaceID/TouchID for quick access."
-            value={settings.biometricLogin}
-            onChange={() => handleToggle('biometricLogin')}
-          />
-        </SettingsSection>
+        <div className="space-y-8">
 
-        <SettingsSection icon={<Database />} title="Privacy & Data">
-          <ToggleItem
-            label="Stealth Mode"
-            sub="Hide items from non-verified users."
-            value={settings.stealthMode}
-            onChange={() => handleToggle('stealthMode')}
-          />
-          <ToggleItem
-            label="Metadata Encryption"
-            sub="Encrypt all chat and video logs."
-            value={settings.metadataEncryption}
-            onChange={() => handleToggle('metadataEncryption')}
-          />
-        </SettingsSection>
-
-        <SettingsSection icon={<Bell />} title="Notifications">
-          <ToggleItem
-            label="Handover Alerts"
-            sub="Mobile notifications for handshakes."
-            value={settings.handoverAlerts}
-            onChange={() => handleToggle('handoverAlerts')}
-          />
-          <ToggleItem
-            label="Escrow Summaries"
-            sub="Receive transaction receipts via email."
-            value={settings.escrowSummaries}
-            onChange={() => handleToggle('escrowSummaries')}
-          />
-        </SettingsSection>
-
-        <SettingsSection icon={<CreditCard />} title="Payment Method">
-          <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-8 bg-gray-800 rounded-md flex items-center justify-center font-bold text-xs text-white">VISA</div>
-              <div>
-                <p className="font-bold text-slate-800">Visa ending in 4210</p>
-                <p className="text-sm text-slate-500">Expires 12/26</p>
+          {/* Identity & Verification */}
+          <SettingsSection icon={<UserCheck />} title="Identity & Verification">
+            <div className="p-6 rounded-2xl bg-white border border-slate-100 flex flex-col items-center gap-3 text-center shadow-sm">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1 ${userData?.isVerified ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                <ShieldCheck size={24} />
               </div>
+              <p className="text-slate-800 font-semibold text-sm">
+                Status: <span className={userData?.isVerified ? 'text-green-600' : 'text-amber-600'}>{userData?.isVerified ? 'KYC Verified' : 'Pending Verification'}</span>
+              </p>
+              <p className="text-xs font-medium text-slate-500 max-w-sm">
+                {userData?.isVerified ? 'Your identity is anchored to the trust ledger.' : 'Complete your KYC to anchor your identity to the network.'}
+              </p>
             </div>
-            <p className="text-sm font-bold text-green-600">Active</p>
-          </div>
-          <button className="w-full flex items-center justify-between py-3 px-1 hover:bg-gray-50 rounded-lg transition-all">
-            <span className="font-semibold text-slate-700">Update Payment Method</span>
-            <ChevronLeft size={20} className="text-slate-400 rotate-180" />
-          </button>
-        </SettingsSection>
+          </SettingsSection>
+
+          {/* Access & Security */}
+          <SettingsSection icon={<KeyRound />} title="Access & Security">
+            <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center justify-between py-3 px-4 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 group">
+              <span className="font-semibold text-sm text-slate-700 flex items-center gap-3"><Lock size={16} className="text-slate-400" /> Change Password</span>
+              <ChevronLeft size={18} className="rotate-180 text-slate-300 group-hover:text-slate-500 transition-colors" />
+            </button>
+            <div className="h-px w-full bg-slate-100 my-2" />
+            <ToggleItem label="Biometric Login" sub="Use FaceID/TouchID for quick access." value={settings.biometricLogin} onChange={() => handleToggle('biometricLogin')} />
+          </SettingsSection>
+
+          {/* Privacy & Data */}
+          <SettingsSection icon={<Database />} title="Privacy & Data">
+            <ToggleItem label="Stealth Mode" sub="Hide items from non-verified users." value={settings.stealthMode} onChange={() => handleToggle('stealthMode')} />
+            <div className="h-px w-full bg-slate-100 my-2" />
+            <ToggleItem label="Metadata Encryption" sub="Encrypt all chat and video logs." value={settings.metadataEncryption} onChange={() => handleToggle('metadataEncryption')} />
+          </SettingsSection>
+
+          {/* Notifications */}
+          <SettingsSection icon={<Bell />} title="Notifications">
+            <ToggleItem label="Handover Alerts" sub="Mobile notifications for handshakes." value={settings.handoverAlerts} onChange={() => handleToggle('handoverAlerts')} />
+            <div className="h-px w-full bg-slate-100 my-2" />
+            <ToggleItem label="Escrow Summaries" sub="Receive transaction receipts via email." value={settings.escrowSummaries} onChange={() => handleToggle('escrowSummaries')} />
+          </SettingsSection>
+
+          {/* Payment Method */}
+          <SettingsSection icon={<CreditCard />} title="Payment Method">
+            {userData?.paymentMethod?.last4 ? (
+              <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-8 rounded-md flex items-center justify-center font-bold text-[10px] text-slate-600 uppercase bg-slate-100 border border-slate-200">
+                    {userData.paymentMethod.cardType || 'CARD'}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-slate-800">{userData.paymentMethod.cardType || 'Card'} ending in {userData.paymentMethod.last4}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Expires {userData.paymentMethod.expiry}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-50 text-green-700">
+                  <CheckCircle2 size={12} /> <span className="text-[10px] font-bold uppercase tracking-wider">Active</span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 rounded-2xl text-center bg-slate-50 border-2 border-dashed border-slate-200">
+                <p className="font-medium text-sm text-slate-500 mb-4">No active payment method linked.</p>
+                <button onClick={() => showToast('Payment flow initialization...')}
+                  className="px-6 py-2.5 rounded-full text-xs font-semibold text-white bg-black hover:bg-slate-800 transition-colors">
+                  Add Method
+                </button>
+              </div>
+            )}
+          </SettingsSection>
+
+        </div>
       </div>
     </div>
   );
 };
 
+// Change Password Modal 
 const ChangePasswordModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (form.newPassword !== form.confirmPassword) {
-      setError('New passwords do not match!');
-      return;
-    }
-    if (form.newPassword.length < 6) {
-      setError('Password must be at least 6 characters!');
-      return;
-    }
+    e.preventDefault(); setError('');
+    if (form.newPassword !== form.confirmPassword) { setError('New passwords do not match!'); return; }
+    if (form.newPassword.length < 6) { setError('Password must be at least 6 characters!'); return; }
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/auth/change-password', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
         body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword })
       });
       const json = await res.json();
-      if (res.ok) onSuccess();
-      else setError(json.msg || 'Failed to change password');
-    } catch {
-      setError('Server error. Try again.');
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) onSuccess(); else setError(json.msg || 'Failed to change password');
+    } catch { setError('Server error. Try again.'); }
+    finally { setLoading(false); }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+    padding: '12px 16px', fontSize: '0.875rem', color: '#0f172a', WebkitTextFillColor: '#0f172a', outline: 'none'
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 shadow-2xl">
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-6">Change Password</h2>
-        {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold">{error}</div>}
+    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl">
+        <h2 className="text-xl font-bold text-slate-800 mb-6">Change Password</h2>
+        {error && <div className="mb-5 p-3 rounded-xl text-sm font-medium text-red-600 bg-red-50 border border-red-100">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
-            placeholder="Current Password"
-            value={form.currentPassword}
-            onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
-            className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold outline-none text-sm sm:text-base"
-            required
-          />
-          <input
-            type="password"
-            placeholder="New Password"
-            value={form.newPassword}
-            onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
-            className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold outline-none text-sm sm:text-base"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Confirm New Password"
-            value={form.confirmPassword}
-            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-            className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold outline-none text-sm sm:text-base"
-            required
-          />
-          <div className="flex gap-2 sm:gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 sm:py-3 rounded-full border border-gray-200 font-bold text-sm sm:text-base text-slate-600 hover:bg-gray-50">
-              Cancel
-            </button>
-            <button type="submit" disabled={loading} className="flex-1 py-2 sm:py-3 rounded-full bg-[#093E28] text-white font-bold text-sm sm:text-base hover:opacity-90 disabled:opacity-50">
-              {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Change Password'}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1 uppercase tracking-wide">Current Password</label>
+            <input type="password" value={form.currentPassword} onChange={(e) => setForm({ ...form, currentPassword: e.target.value })} style={inputStyle} required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1 uppercase tracking-wide">New Password</label>
+            <input type="password" value={form.newPassword} onChange={(e) => setForm({ ...form, newPassword: e.target.value })} style={inputStyle} required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1 uppercase tracking-wide">Confirm Password</label>
+            <input type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} style={inputStyle} required />
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-full text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 py-3 rounded-full text-sm font-semibold text-white bg-black hover:bg-slate-800 transition-colors disabled:opacity-60">
+              {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Update'}
             </button>
           </div>
         </form>
@@ -256,28 +216,25 @@ const ChangePasswordModal: React.FC<{ onClose: () => void; onSuccess: () => void
 };
 
 const SettingsSection: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
-  <section>
-    <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-      <div className="text-[#093E28]">{icon}</div>
-      {title}
-    </h2>
-    <div className="bg-white rounded-2xl soft-shadow p-6 space-y-4">
+  <section className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+    <div className="px-6 py-5 border-b border-slate-50 flex items-center gap-3 bg-slate-50/50">
+      <div className="text-slate-400">{icon}</div>
+      <h2 className="text-base font-bold text-slate-800">{title}</h2>
+    </div>
+    <div className="p-4 sm:p-6 space-y-2">
       {children}
     </div>
   </section>
 );
 
 const ToggleItem = ({ label, sub, value, onChange }: { label: string; sub: string; value: boolean; onChange: () => void }) => (
-  <div className="flex items-center justify-between py-2">
+  <div className="flex items-center justify-between py-3 px-2">
     <div>
-      <h4 className="font-semibold text-slate-700">{label}</h4>
-      <p className="text-sm text-slate-500">{sub}</p>
+      <h4 className="font-semibold text-slate-700 text-sm">{label}</h4>
+      <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
     </div>
-    <button
-      onClick={onChange}
-      className={`w-12 h-7 rounded-full transition-all relative ${value ? 'bg-[#093E28]' : 'bg-gray-200'}`}
-    >
-      <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${value ? 'left-6' : 'left-1'}`} />
+    <button onClick={onChange} className={`w-11 h-6 rounded-full relative transition-colors ${value ? 'bg-black' : 'bg-slate-200'}`}>
+      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${value ? 'left-6' : 'left-1'}`} />
     </button>
   </div>
 );

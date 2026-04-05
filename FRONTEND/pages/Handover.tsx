@@ -3,13 +3,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Transaction } from '../types';
 import { ShieldCheck, Lock, CheckCircle, Video, Loader2, ChevronLeft, ClipboardCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
 import CameraCapture from '../components/CameraCapture';
+import { jwtDecode } from 'jwt-decode';
 
 const Handover: React.FC = () => {
   const { txId } = useParams();
   const navigate = useNavigate();
   const [tx, setTx] = useState<Transaction | null>(null);
-  
+  const searchParams = new URLSearchParams(window.location.search);
+  const isReturnFlow = searchParams.get('type') === 'return';
+
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState(['', '', '', '']);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -17,225 +21,340 @@ const Handover: React.FC = () => {
   const [renterVideo, setRenterVideo] = useState<Blob | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isUploadingProof, setIsUploadingProof] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState({ condition: false, functionality: false, accessories: false });
+  const [currentUserData, setCurrentUserData] = useState<any>(null);
+  const otpRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
-  const [checklist, setChecklist] = useState({
-    condition: false,
-    functionality: false,
-    accessories: false
-  });
+  const currentUserId = currentUserData?._id || (() => {
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    if (storedUser) { try { const u = JSON.parse(storedUser); return u?._id || u?.id; } catch { } }
+    if (storedToken) { try { const d: any = jwtDecode(storedToken); return d.id || d._id || d.user?.id || d.user?._id; } catch { } }
+    return localStorage.getItem('userId') || localStorage.getItem('currentUserId');
+  })();
 
-  const otpRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null)
-  ];
+  const txOwnerId = typeof tx?.ownerId === 'object' ? (tx?.ownerId as any)?._id || (tx?.ownerId as any)?.id : tx?.ownerId;
+  const txRenterId = typeof tx?.renterId === 'object' ? (tx?.renterId as any)?._id || (tx?.renterId as any)?.id : tx?.renterId;
+  
+  const isOwner = String(currentUserId) === String(txOwnerId);
+  const isRenter = String(currentUserId) === String(txRenterId);
 
   useEffect(() => {
-    if (txId) api.getTransactionById(txId).then(data => setTx(data || null));
-    // Dev mode — localStorage-la save pannina OTP read pannurom
-    const savedOtp = localStorage.getItem('currentOTP');
-    if (savedOtp) setDevOtp(savedOtp);
-  }, [txId]);
+    if (txId) {
+      api.getTransactionById(txId).then(data => { setTx(data || null); updateStepFromStatus(data?.status); })
+        .catch(err => { console.error('Failed to fetch transaction:', err); setTx(null); });
+    }
+  }, [txId, currentUserData]);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try { const u = await api.getCurrentUser(); setCurrentUserData(u); }
+      catch (err) { console.error('Failed to fetch current user:', err); }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  const updateStepFromStatus = (status: string | undefined) => {
+    if (isReturnFlow && status === 'ACTIVE') { setStep(1); return; }
+    if (status === 'PENDING_HANDOVER' || status === 'REQUESTED' || status === 'PENDING_OTP') setStep(1);
+    else if (status === 'HANDOVER_IN_PROGRESS' || status === 'OTP_VERIFIED' || status === 'IN_PROGRESS') setStep(2);
+    else if (status === 'ACTIVE' || status === 'ALLOCATED') setStep(4);
+    else if (status === 'RETURN_IN_PROGRESS') setStep(2);
+    else if (status === 'RETURN_INITIATED') setStep(1);
+    else if (status === 'COMPLETED') setStep(4);
+    else setStep(1);
+  };
+
+  useEffect(() => { if (isReturnFlow && tx?.status === 'ACTIVE') setStep(1); }, [isReturnFlow, tx?.status]);
+
+  useEffect(() => {
+    if (!txId || tx?.status === 'COMPLETED') return;
+    const interval = setInterval(async () => {
+      try {
+        const updatedTx = await api.getTransactionById(txId);
+        if (updatedTx) {
+          setTx(updatedTx);
+          if (updatedTx.status === 'COMPLETED') { setStep(4); return; }
+          if ((updatedTx.status === 'HANDOVER_IN_PROGRESS' || updatedTx.status === 'OTP_VERIFIED') && step === 1) {
+            setStep(2);
+          }
+          else if (updatedTx.ownerVideoUrl && step === 2) setStep(3);
+          else if (updatedTx.status === 'ACTIVE' && step < 4) setStep(isReturnFlow ? 1 : 4);
+          else if (updatedTx.status === 'RETURN_IN_PROGRESS') setStep(2);
+          else if (updatedTx.status === 'RETURN_INITIATED') setStep(1);
+        }
+      } catch (err) { console.error('Sync error:', err); }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [txId, step, tx?.status, isReturnFlow]);
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
+    const newOtp = [...otp]; newOtp[index] = value; setOtp(newOtp);
     if (value && index < 3) otpRefs[index + 1].current?.focus();
   };
-
+  
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) otpRefs[index - 1].current?.focus();
   };
 
   const verifyOtp = async () => {
-    if (!txId) return;
-    setIsVerifying(true);
+    if (!txId) return; setIsVerifying(true);
     try {
-      const isValid = await api.verifyOtp(txId, otp.join(''));
-      if (isValid) {
-        localStorage.removeItem('currentOTP'); // clear after use
-        setDevOtp(null);
-        setStep(2);
+      const otpString = otp.join('');
+      if (tx?.status === 'RETURN_IN_PROGRESS' || tx?.status === 'RETURN_INITIATED') {
+        const result = await api.completeReturn(txId, otpString);
+        if (result.success) setStep(4);
+        else { alert('Invalid Return Code.'); setOtp(['', '', '', '']); otpRefs[0].current?.focus(); }
       } else {
-        alert("Invalid Security Code.");
-        setOtp(['', '', '', '']);
-        otpRefs[0].current?.focus();
+        const isValid = await api.verifyOtp(txId, otpString);
+        if (isValid) {
+          setStep(2);
+        }
+        else { alert('Invalid Code.'); setOtp(['', '', '', '']); otpRefs[0].current?.focus(); }
       }
-    } catch (error) {
-      console.error("OTP Verification Error:", error);
-      alert("An error occurred while verifying the code. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
+    } catch { alert('Terminal error. Retry.'); }
+    finally { setIsVerifying(false); }
   };
 
   const handleOwnerProofSubmit = async () => {
-    if (!txId || !ownerVideo) return;
-    setIsUploadingProof(true);
-    try {
-      await api.uploadHandoverProof(txId, ownerVideo, 'OWNER');
-      setStep(3);
-    } catch (error) {
-      console.error("Owner Proof Upload Error:", error);
-      alert("Failed to upload proof. Please try again.");
-    } finally {
-      setIsUploadingProof(false);
-    }
+    if (!txId || !ownerVideo) return; setIsUploadingProof(true);
+    try { await api.uploadHandoverProof(txId, ownerVideo, 'OWNER'); setStep(3); }
+    catch { alert('Upload failed. Retry.'); }
+    finally { setIsUploadingProof(false); }
   };
 
   const handleComplete = async () => {
-    if (!txId || !renterVideo) return;
-    setIsCompleting(true);
+    if (!txId || !renterVideo) return; setIsCompleting(true);
     try {
       await api.uploadHandoverProof(txId, renterVideo, 'RENTER');
       await api.completeTransaction(txId);
-      alert("Handover Successful! Rental is now ACTIVE.");
+      alert('Handover Complete!');
       navigate('/dashboard');
-    } finally {
-      setIsCompleting(false);
-    }
+    } finally { setIsCompleting(false); }
   };
 
-  const isOtpComplete = otp.every(digit => digit !== '');
+  const isOtpComplete = otp.every(d => d !== '');
   const isChecklistComplete = checklist.condition && checklist.functionality && checklist.accessories;
 
-  if (!tx) return <div className="p-20 text-center font-semibold text-slate-500">Loading Transaction...</div>;
+  if (!currentUserId && currentUserData !== null) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="text-center space-y-4">
+        <ShieldCheck className="mx-auto" size={48} color="#94a3b8" />
+        <h2 className="text-xl font-bold" style={{ color: '#0f172a' }}>Authentication Required</h2>
+        <button onClick={() => navigate('/login')} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="px-6 py-2.5 rounded-full font-medium mt-2 hover:opacity-80 transition-opacity">Go to Login</button>
+      </div>
+    </div>
+  );
+
+  if (!tx) return (
+    <div className="min-h-screen flex items-center justify-center gap-3" style={{ backgroundColor: '#F5F5F7' }}>
+      <Loader2 className="animate-spin" size={32} color="#94a3b8" />
+      <span className="font-medium" style={{ color: '#64748b' }}>Syncing Ledger...</span>
+    </div>
+  );
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-8 sm:py-12 pb-32 sm:pb-40">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8"
-      >
-        <ChevronLeft size={20} />
-        Back
+    <div className="min-h-screen w-full px-4 md:px-8 py-8 pb-24 relative" style={{ backgroundColor: '#F5F5F7' }}>
+      <button onClick={() => navigate(-1)} className="absolute top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium hover:opacity-70 transition-opacity group z-10" style={{ color: '#64748b' }}>
+        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
       </button>
+      <div className="max-w-[700px] mx-auto">
 
-      <div className="text-center mb-8 sm:mb-10">
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-slate-900">Secure Handover</h1>
-        <p className="text-slate-500 font-semibold mt-2">Item: {tx.itemTitle}</p>
-      </div>
+        <div className="text-center mb-10">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: '#0f172a' }}>Secure Handover Protocol</h1>
+          <p className="mt-2 text-sm font-medium" style={{ color: '#64748b' }}>Asset: <span className="font-semibold" style={{ color: '#000000' }}>{tx.itemTitle}</span></p>
+        </div>
 
-      {/* Step Indicator */}
-      <div className="flex items-center justify-between mb-8 sm:mb-12 px-4 sm:px-6">
-        {[1, 2, 3].map((s, i) => (
-          <React.Fragment key={s}>
-            <div className="flex flex-col items-center gap-2">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-lg transition-all duration-500 ${step >= s ? 'bg-[#093E28] text-white' : 'bg-gray-200 text-slate-500'}`}>
-                {step > s ? <CheckCircle size={20} /> : s}
+        {/* Progress */}
+        <div className="flex items-center justify-between mb-12 px-4 relative max-w-[400px] mx-auto">
+          <div className="absolute left-[10%] right-[10%] top-1/2 -translate-y-1/2 h-1 -z-10" style={{ backgroundColor: '#e2e8f0' }} />
+          {[1, 2, 3].map((s) => (
+            <div key={s} className="flex flex-col items-center gap-3 relative z-10" style={{ backgroundColor: '#F5F5F7' }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all border-2"
+                   style={{ 
+                     backgroundColor: step > s ? '#000000' : step === s ? '#ffffff' : '#f1f5f9',
+                     color: step > s ? '#ffffff' : step === s ? '#000000' : '#94a3b8',
+                     borderColor: step >= s ? '#000000' : '#e2e8f0',
+                     boxShadow: step === s ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                   }}>
+                {step > s ? <CheckCircle size={18} /> : s}
               </div>
-              <span className={`text-xs sm:text-sm font-bold ${step >= s ? 'text-[#093E28]' : 'text-slate-400'}`}>
-                {s === 1 ? 'Verify' : s === 2 ? 'Lender Proof' : 'Renter Proof'}
-              </span>
             </div>
-            {i < 2 && <div className={`flex-1 h-1 mx-2 sm:mx-4 rounded-full ${step > s ? 'bg-[#093E28]' : 'bg-gray-200'}`} />}
-          </React.Fragment>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="bg-white rounded-3xl soft-shadow p-6 sm:p-8 lg:p-10">
-        {step === 1 && (
-          <div className="space-y-8 animate-in fade-in">
-            <StepHeader icon={<Lock />} title="Physical Verification" subtitle="Enter the 4-digit code from the item owner." />
+        <div className="rounded-[2rem] p-6 sm:p-10 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
+          {/* STEP 1 */}
+          {step === 1 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              {tx.status === 'RETURN_INITIATED' ? (
+                isOwner ? (
+                  <div className="space-y-6 text-center">
+                    <StepHeader icon={<Lock size={20} color="#000000" />} title="Enter Return Code" subtitle="Enter the 4-digit verification code." />
+                    <div className="flex justify-center gap-3">
+                      {otp.map((digit, i) => (
+                        <input key={i} ref={otpRefs[i]} type="text" maxLength={1} value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)} onKeyDown={(e) => handleKeyDown(i, e)}
+                          className="w-14 h-16 text-center text-2xl font-bold rounded-xl outline-none transition-colors"
+                          style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', WebkitTextFillColor: '#0f172a' }} />
+                      ))}
+                    </div>
+                    <button onClick={verifyOtp} disabled={!isOtpComplete || isVerifying} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="w-full py-3.5 rounded-full font-semibold disabled:opacity-50 mt-4 flex items-center justify-center">
+                      {isVerifying ? <Loader2 className="animate-spin" size={20} /> : 'Verify Code'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6 text-center">
+                    <StepHeader icon={<Loader2 className="animate-spin" size={20} color="#64748b" />} title="Waiting for Owner" subtitle="Owner must authenticate the code." />
+                    <div className="p-6 rounded-2xl" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <p className="font-semibold text-sm" style={{ color: '#0f172a' }}>Verification In Progress</p>
+                    </div>
+                  </div>
+                )
+              ) : isRenter ? (
+                <div className="space-y-6 text-center">
+                  <StepHeader icon={<Lock size={20} color="#000000" />} title="Enter 4-Digit Code" subtitle="Ask the lender for the code." />
+                  <div className="flex justify-center gap-3">
+                    {otp.map((digit, i) => (
+                      <input key={i} ref={otpRefs[i]} type="text" maxLength={1} value={digit}
+                        onChange={(e) => handleOtpChange(i, e.target.value)} onKeyDown={(e) => handleKeyDown(i, e)}
+                        className="w-14 h-16 text-center text-2xl font-bold rounded-xl outline-none transition-colors"
+                        style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', WebkitTextFillColor: '#0f172a' }} />
+                    ))}
+                  </div>
+                  <button onClick={verifyOtp} disabled={!isOtpComplete || isVerifying} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="w-full py-3.5 rounded-full font-semibold disabled:opacity-50 mt-4 flex items-center justify-center">
+                    {isVerifying ? <Loader2 className="animate-spin" size={20} /> : 'Verify Code'}
+                  </button>
+                </div>
+              ) : isOwner && tx.status === 'RETURN_IN_PROGRESS' ? (
+                <div className="space-y-6 text-center">
+                  <StepHeader icon={<Lock size={20} color="#000000" />} title="Enter Return Code" subtitle="Enter the 4-digit code." />
+                  <div className="flex justify-center gap-3">
+                    {otp.map((digit, i) => (
+                      <input key={i} ref={otpRefs[i]} type="text" maxLength={1} value={digit}
+                        onChange={(e) => handleOtpChange(i, e.target.value)} onKeyDown={(e) => handleKeyDown(i, e)}
+                        className="w-14 h-16 text-center text-2xl font-bold rounded-xl outline-none transition-colors"
+                        style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', WebkitTextFillColor: '#0f172a' }} />
+                    ))}
+                  </div>
+                  <button onClick={verifyOtp} disabled={!isOtpComplete || isVerifying} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="w-full py-3.5 rounded-full font-semibold disabled:opacity-50 mt-4 flex items-center justify-center">
+                    {isVerifying ? <Loader2 className="animate-spin" size={20} /> : 'Verify Code'}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center space-y-6">
+                  <StepHeader icon={<Lock size={20} color="#000000" />} title={tx.status === 'RETURN_IN_PROGRESS' ? 'Request Sent' : 'Waiting for Renter'} subtitle="Share the code to proceed." />
+                  <div className="rounded-2xl p-6" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <p className="font-semibold text-sm mb-2" style={{ color: '#0f172a' }}>Authorization Pending</p>
+                    <p className="text-xs" style={{ color: '#64748b' }}>Provide the 4-digit code to the renter to unlock the camera scan stage.</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
 
-            {/* DEV MODE — OTP display box */}
-            {devOtp && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-                <p className="text-xs font-bold text-green-600 uppercase tracking-widest mb-1">🔐 Dev Mode — OTP</p>
-                <p className="text-3xl font-black text-green-700 tracking-widest">{devOtp}</p>
-                <p className="text-xs text-green-500 mt-1">Share this code with the owner (real - SMS will be displayed on app)</p>
+          {/* STEP 2 */}
+          {step === 2 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              {isOwner ? (
+                <>
+                  <StepHeader icon={<Video size={20} color="#000000" />} title={isReturnFlow ? 'Renter Scan' : 'Baseline Scan'} subtitle="Record the asset state now." />
+                  <div className="rounded-2xl overflow-hidden z-10 relative" style={{ border: '1px solid #e2e8f0' }}>
+                    {tx.status === 'HANDOVER_IN_PROGRESS' || tx.status === 'OTP_VERIFIED' || isReturnFlow ? (
+                      <CameraCapture label="Start Recording" mode="video" onCapture={(blob) => setOwnerVideo(blob)} />
+                    ) : (
+                      <div className="p-12 text-center" style={{ backgroundColor: '#f8fafc' }}>
+                        <Loader2 className="animate-spin mx-auto mb-4" size={32} color="#94a3b8" />
+                        <p className="font-semibold text-sm" style={{ color: '#0f172a' }}>Waiting for Renter Authorization...</p>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={handleOwnerProofSubmit} disabled={!ownerVideo || isUploadingProof} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="w-full py-3.5 rounded-full font-semibold flex items-center justify-center gap-2 mt-4 disabled:opacity-50">
+                    {isUploadingProof ? <Loader2 className="animate-spin" size={20} /> : 'Upload Proof'}
+                  </button>
+                </>
+              ) : (
+                <div className="text-center space-y-6">
+                  <StepHeader icon={<Video size={20} color="#000000" />} title="Owner Scanning..." subtitle="Owner is recording the baseline telemetry." />
+                  <div className="rounded-2xl p-8" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <Loader2 className="animate-spin mx-auto mb-4" size={32} color="#94a3b8" />
+                    <p className="font-semibold text-sm" style={{ color: '#0f172a' }}>Syncing Optical Data</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* STEP 3 */}
+          {step === 3 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              {isRenter ? (
+                <>
+                  <StepHeader icon={<ClipboardCheck size={20} color="#000000" />} title={isReturnFlow ? 'Lender Verify' : 'Final Acceptance'} subtitle="Verify and capture receiving telemetry." />
+                  <div className="space-y-3 p-5 rounded-2xl" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    {Object.keys(checklist).map((key) => (
+                      <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-colors hover:opacity-80">
+                        <input type="checkbox" checked={checklist[key as keyof typeof checklist]}
+                          onChange={(e) => setChecklist({ ...checklist, [key]: e.target.checked })}
+                          className="w-5 h-5 accent-black" />
+                        <span className="font-medium text-sm capitalize" style={{ color: '#334155' }}>{key} Verified</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="rounded-2xl overflow-hidden z-10 relative" style={{ border: '1px solid #e2e8f0' }}>
+                    <CameraCapture label="Record Receiving Proof" mode="video" onCapture={(blob) => setRenterVideo(blob)} />
+                  </div>
+                  <button onClick={handleComplete} disabled={!renterVideo || !isChecklistComplete || isCompleting} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="w-full py-3.5 rounded-full font-semibold flex items-center justify-center gap-2 mt-4 disabled:opacity-50">
+                    {isCompleting ? <Loader2 className="animate-spin" size={20} /> : 'Finalize Handover'}
+                  </button>
+                </>
+              ) : (
+                // ✅ FIX: Strict Inline Styling to Prevent Purple Background
+                <div className="text-center space-y-6">
+                  <StepHeader icon={<Loader2 className="animate-spin" size={20} color="#64748b" />} title="Waiting for Renter" subtitle="Renter is verifying condition." />
+                  <div className="rounded-2xl p-8 flex flex-col items-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-sm" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
+                      <CheckCircle size={32} color="#22c55e" />
+                    </div>
+                    <p className="font-bold text-[15px] mb-2" style={{ color: '#0f172a' }}>Lender Scan Complete</p>
+                    <p className="text-xs max-w-xs mx-auto leading-relaxed" style={{ color: '#64748b' }}>The renter is now performing the final checklist and recording the receiving video proof. Please wait.</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* STEP 4 */}
+          {step === 4 && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 py-6">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>
+                <CheckCircle size={40} />
               </div>
-            )}
-
-            <div className="flex justify-center gap-2 sm:gap-4">
-              {otp.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={otpRefs[i]}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  disabled={isVerifying}
-                  className="w-12 h-16 sm:w-16 sm:h-20 text-center text-3xl sm:text-4xl font-bold bg-gray-100 border-2 border-gray-200 rounded-2xl focus:border-[#093E28] outline-none text-slate-800 transition-all"
-                  onChange={(e) => handleOtpChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                />
-              ))}
-            </div>
-            <button
-              onClick={verifyOtp}
-              disabled={!isOtpComplete || isVerifying}
-              className="w-full bg-[#FF7A59] text-white py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-3"
-            >
-              {isVerifying ? <Loader2 className="animate-spin" /> : 'Authorize'}
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-8 animate-in fade-in">
-            <StepHeader icon={<Video />} title="Owner's Handover Proof" subtitle="Record a live video of the item being handed over." />
-            <CameraCapture label="Capture Lender Proof" mode="video" onCapture={(blob) => setOwnerVideo(blob)} />
-            <button
-              onClick={handleOwnerProofSubmit}
-              disabled={!ownerVideo || isUploadingProof}
-              className="w-full bg-[#093E28] text-white py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-3"
-            >
-              {isUploadingProof ? <Loader2 className="animate-spin" /> : 'Proceed'}
-            </button>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-8 animate-in fade-in">
-            <StepHeader icon={<ClipboardCheck />} title="Final Condition Report" subtitle="Confirm the item's state and record your receiving proof." />
-            <div className="space-y-3 bg-gray-50 p-6 rounded-2xl border border-gray-200">
-              {[
-                { key: 'condition', label: 'Item matches listed condition' },
-                { key: 'functionality', label: 'Functionality verified' },
-                { key: 'accessories', label: 'All accessories included' }
-              ].map((item) => (
-                <label key={item.key} className="flex items-center gap-4 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checklist[item.key as keyof typeof checklist]}
-                    onChange={(e) => setChecklist({ ...checklist, [item.key]: e.target.checked })}
-                    className="w-5 h-5 rounded-md border-gray-300 text-[#093E28] focus:ring-[#093E28]/50"
-                  />
-                  <span className="font-semibold text-slate-700">{item.label}</span>
-                </label>
-              ))}
-            </div>
-            <CameraCapture label="Record Receiving Proof" mode="video" onCapture={(blob) => setRenterVideo(blob)} />
-            <button
-              onClick={handleComplete}
-              disabled={!renterVideo || !isChecklistComplete || isCompleting}
-              className="w-full bg-green-600 text-white py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-3"
-            >
-              {isCompleting ? <Loader2 className="animate-spin" /> : 'Complete Handover'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 sm:mt-8 flex gap-3 sm:gap-4 text-slate-500 p-3 sm:p-4 bg-gray-50 rounded-2xl">
-        <ShieldCheck size={24} className="shrink-0 text-green-600" />
-        <p className="text-sm font-semibold">By finalizing, both parties confirm the asset state. Disputes without video proof are ineligible for claims.</p>
+              <h2 className="text-2xl font-bold tracking-tight" style={{ color: '#0f172a' }}>
+                {tx.status === 'COMPLETED' ? 'Return Finalized' : 'Protocol Completed'}
+              </h2>
+              <p className="text-sm font-medium mb-6" style={{ color: '#64748b' }}>
+                {tx.status === 'COMPLETED' ? 'The asset return has been verified. Trust scores updated.' : 'The handover is officially verified and secured in the ledger.'}
+              </p>
+              <button onClick={() => navigate('/dashboard')} style={{ backgroundColor: '#000000', color: '#ffffff' }} className="w-full py-3.5 rounded-full font-semibold">
+                Return to Dashboard
+              </button>
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 const StepHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) => (
-  <div className="text-center">
-    <div className="w-12 h-12 bg-[#E7EDE4] text-[#093E28] rounded-full flex items-center justify-center mx-auto mb-4">{icon}</div>
-    <h2 className="text-xl font-bold text-slate-800">{title}</h2>
-    <p className="text-slate-500">{subtitle}</p>
+  <div className="flex flex-col items-center mb-6">
+    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 shadow-sm" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+      {icon}
+    </div>
+    <h2 className="text-xl font-bold tracking-tight mb-1" style={{ color: '#0f172a' }}>{title}</h2>
+    <p className="text-xs font-medium" style={{ color: '#64748b' }}>{subtitle}</p>
   </div>
 );
 

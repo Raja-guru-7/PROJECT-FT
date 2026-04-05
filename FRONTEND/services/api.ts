@@ -1,8 +1,7 @@
 import { MOCK_ITEMS, MOCK_CURRENT_USER, MOCK_TRANSACTIONS } from '../mockData';
 import { Item, Transaction, User } from '../types';
 
-const BASE_URL = 'https://aroundu-backend-hd26.onrender.com/api';
-
+const BASE_URL = 'http://localhost:5000/api';
 class ApiService {
 
   private getToken(): string | null {
@@ -27,10 +26,40 @@ class ApiService {
     const json = await res.json();
     if (!res.ok) throw new Error(json.msg || 'Login failed');
     localStorage.setItem('token', json.token);
+
+    try {
+      const user = await this.getCurrentUser();
+      localStorage.setItem('user', JSON.stringify(user));
+    } catch (e) {
+      console.warn('Failed to store user data during login:', e);
+    }
+
     return json;
   }
 
-  async register(data: { name: string; email: string; password: string }): Promise<{ token: string }> {
+  async sendRegistrationOtp(email: string, name: string): Promise<{ msg: string }> {
+    const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ email, name }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = 'Failed to send OTP';
+      try {
+        const json = JSON.parse(text);
+        msg = json.msg || msg;
+      } catch (e) {
+        msg = `Error ${res.status}: ${text.substring(0, 100)}`;
+      }
+      throw new Error(msg);
+    }
+
+    return await res.json();
+  }
+
+  async register(data: { name: string; email: string; password: string; otp: string }): Promise<{ token: string }> {
     const res = await fetch(`${BASE_URL}/auth/register`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -39,11 +68,45 @@ class ApiService {
     const json = await res.json();
     if (!res.ok) throw new Error(json.msg || 'Registration failed');
     localStorage.setItem('token', json.token);
+
+    try {
+      const user = await this.getCurrentUser();
+      localStorage.setItem('user', JSON.stringify(user));
+    } catch (e) {
+      console.warn('Failed to store user data during registration:', e);
+    }
+
     return json;
   }
 
   async logout(): Promise<void> {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('currentUserId');
+  }
+
+  async signInWithGoogle(userData: { email: string; name: string; googleId: string; avatar: string }): Promise<{ token: string; userId: string }> {
+    const res = await fetch(`${BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(userData),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.msg || 'Google sign-in failed');
+    localStorage.setItem('token', json.token);
+
+    if (json.token) {
+      try {
+        const user = await this.getCurrentUser();
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (e) {
+        console.warn('Failed to store user data during Google sign-in:', e);
+      }
+    }
+
+    return json;
   }
 
   async getCurrentUser(): Promise<User> {
@@ -61,6 +124,9 @@ class ApiService {
         isVerified: json.isVerified || false,
         kycStatus: json.kycStatus || 'none',
         location: json.location || { lat: 11.3410, lng: 77.7172 },
+        settings: json.settings,
+        paymentMethod: json.paymentMethod,
+        savedAssets: json.savedAssets || [],
       };
     } catch {
       return MOCK_CURRENT_USER;
@@ -72,6 +138,7 @@ class ApiService {
     try {
       let url = `${BASE_URL}/product/all`;
       const params = new URLSearchParams();
+      params.append('status', 'available');
       if (filters.query) params.append('query', filters.query);
       if (filters.category) params.append('category', filters.category);
       if (filters.lat && filters.lng) {
@@ -85,11 +152,13 @@ class ApiService {
       if (!res.ok) throw new Error(json.msg);
       return json.map((p: any) => ({
         id: p._id,
-        owner: p.owner?._id || p.owner,           // ✅ for ItemDetail ownerId fix
+        // ✅ pass full owner object for avatar access
+        owner: p.owner,
         ownerId: p.owner?._id || p.owner,
         ownerName: p.owner?.name || 'Unknown',
         ownerTrustScore: p.owner?.trustScore || 30,
-        title: p.title,                            // ✅ Fixed: was p.name
+        ownerAvatar: p.owner?.avatar || '',
+        title: p.title,
         description: p.description,
         category: p.category,
         pricePerDay: p.pricePerDay,
@@ -114,11 +183,14 @@ class ApiService {
       const p = await res.json();
       if (!res.ok) throw new Error(p.msg);
       return {
-        id: p._id,         // ✅ for View Profile navigation
+        id: p._id,
+        // ✅ FIX: pass full owner object so ItemDetail can extract _id and avatar
+        owner: p.owner,
         ownerId: p.owner?._id || p.owner,
         ownerName: p.owner?.name || 'Unknown',
         ownerTrustScore: p.owner?.trustScore || 30,
-        title: p.title,                            // ✅ Fixed: was p.name
+        ownerAvatar: p.owner?.avatar || '',
+        title: p.title,
         description: p.description,
         category: p.category,
         pricePerDay: p.pricePerDay,
@@ -165,6 +237,8 @@ class ApiService {
         totalAmount: t.totalAmount,
         status: t.status,
         otpCode: t.otpCode,
+        ownerVideoUrl: t.ownerVideoUrl || '',
+        renterVideoUrl: t.renterVideoUrl || '',
       }));
     } catch {
       return MOCK_TRANSACTIONS;
@@ -187,6 +261,8 @@ class ApiService {
         totalAmount: json.totalAmount,
         status: json.status,
         otpCode: json.otpCode,
+        ownerVideoUrl: json.ownerVideoUrl || '',
+        renterVideoUrl: json.renterVideoUrl || '',
       };
     } catch {
       return MOCK_TRANSACTIONS.find(t => t.id === id);
@@ -214,20 +290,23 @@ class ApiService {
       const json = await res.json();
       return res.ok && json.success;
     } catch {
-      return otp === '1234';
+      return false;
     }
   }
 
   async uploadHandoverProof(txId: string, videoBlob: Blob, type: 'OWNER' | 'RENTER'): Promise<void> {
     try {
+      const formData = new FormData();
+      formData.append('video', videoBlob, `${type.toLowerCase()}-proof.webm`);
+      formData.append('type', type);
       const res = await fetch(`${BASE_URL}/transaction/${txId}/upload-proof`, {
         method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({ type, videoUrl: 'mock://video' }),
+        headers: { 'x-auth-token': this.getToken() || '' },
+        body: formData,
       });
       if (!res.ok) throw new Error('Upload failed');
-    } catch {
-      console.log(`Uploading ${type} proof for ${txId}`);
+    } catch (err) {
+      console.error(`uploadHandoverProof error:`, err);
     }
   }
 
@@ -238,9 +317,93 @@ class ApiService {
         headers: this.getHeaders(),
       });
       if (!res.ok) throw new Error('Complete failed');
-    } catch {
-      console.log(`Completing TX ${txId}`);
+    } catch (err) {
+      console.error(`completeTransaction error:`, err);
     }
+  }
+
+  async requestReturn(txId: string): Promise<{ success: boolean; msg?: string; returnOtpCode?: string }> {
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/${txId}/request-return`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Return request failed');
+      return { success: true, msg: json.msg, returnOtpCode: json.returnOtpCode || '123456' };
+    } catch (err) {
+      console.error(`requestReturn error:`, err);
+      return { success: false, msg: 'Failed to request return', returnOtpCode: '123456' };
+    }
+  }
+
+  async initiateReturn(txId: string): Promise<{ success: boolean; msg?: string; returnOtpCode?: string }> {
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/${txId}/initiate-return`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Initiate return failed');
+      return { success: true, msg: json.msg, returnOtpCode: json.returnOtpCode || '123456' };
+    } catch (err) {
+      console.error(`initiateReturn error:`, err);
+      return { success: false, msg: 'Failed to initiate return', returnOtpCode: '123456' };
+    }
+  }
+
+  async completeReturn(txId: string, otp: string): Promise<{ success: boolean; msg?: string }> {
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/${txId}/complete-return`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ otp }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || 'Return completion failed');
+      return { success: true, msg: json.msg };
+    } catch (err) {
+      console.error(`completeReturn error:`, err);
+      return { success: false, msg: 'Failed to complete return' };
+    }
+  }
+
+  async toggleSaveAsset(productId: string): Promise<{ msg: string; savedAssets: string[] }> {
+    const res = await fetch(`${BASE_URL}/user/toggle-save/${productId}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.msg || 'Toggle save failed');
+    return json;
+  }
+
+  async getSavedAssets(): Promise<Item[]> {
+    const res = await fetch(`${BASE_URL}/user/saved-assets`, {
+      headers: this.getHeaders(),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.msg || 'Failed to fetch saved assets');
+    return json.map((p: any) => ({
+      id: p._id,
+      owner: p.owner,
+      ownerId: p.owner?._id || p.owner,
+      ownerName: p.owner?.name || 'Unknown',
+      ownerTrustScore: p.owner?.trustScore || 30,
+      ownerAvatar: p.owner?.avatar || '',
+      title: p.title,
+      description: p.description,
+      category: p.category,
+      pricePerDay: p.pricePerDay,
+      depositAmount: p.depositAmount || 0,
+      insuranceFee: p.insuranceFee || 0,
+      imageUrl: p.imageUrl || '',
+      location: {
+        lat: p.location?.coordinates?.[1] || 11.3410,
+        lng: p.location?.coordinates?.[0] || 77.7172,
+        address: p.location?.address || 'Erode, TN',
+      },
+    }));
   }
 }
 

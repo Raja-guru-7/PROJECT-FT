@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, RefreshCcw, CheckCircle2, Video, ShieldAlert } from 'lucide-react';
+import { Camera, RefreshCcw, CheckCircle2, Video, ShieldAlert, Square } from 'lucide-react';
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
@@ -12,10 +12,12 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0); // Optional: track seconds
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fix: when stream changes, attach to video element
   useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
@@ -23,15 +25,24 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
     }
   }, [stream]);
 
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
   const startCamera = async () => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: 'user' }, 
         audio: mode === 'video'
       });
       setStream(s);
     } catch (err) {
       console.error('Camera access denied', err);
+      alert('Camera/Microphone access denied. Please allow permissions.');
     }
   };
 
@@ -40,8 +51,12 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    if (isRecording) {
+      stopRecording();
+    }
   };
 
+  // --- PHOTO LOGIC ---
   const takePhoto = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
@@ -58,102 +73,145 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, label, mode = 
     }, 'image/jpeg');
   };
 
+  // --- VIDEO LOGIC ---
   const startRecording = () => {
     if (!stream) return;
+    
     chunksRef.current = [];
-    const recorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = recorder;
-    recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/mp4' });
-      setCapturedBlob(blob);
-      onCapture(blob);
-      stopCamera();
-    };
-    recorder.start();
-    setIsRecording(true);
-  };
+    try {
+      // Use standard mp4/webm depending on browser support
+      const mimeType = MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4';
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      
+      mediaRecorderRef.current = mediaRecorder;
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        setCapturedBlob(blob);
+        onCapture(blob);
+        stopCamera();
+        setIsRecording(false);
+        setRecordingTime(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      // Start a simple timer
+      let seconds = 0;
+      timerRef.current = setInterval(() => {
+        seconds++;
+        setRecordingTime(seconds);
+        // Optional: Auto stop after 10 seconds for proof
+        if (seconds >= 10) {
+           stopRecording();
+        }
+      }, 1000);
+
+    } catch (err) {
+      console.error('Failed to start recording', err);
     }
   };
 
-  useEffect(() => {
-    return () => stopCamera();
-  }, []);
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  };
 
   return (
-    <div className="w-full bg-slate-100 rounded-[2.5rem] overflow-hidden aspect-[4/3] relative flex flex-col items-center justify-center border-8 border-white floating-3d shadow-inner">
+    <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} className="w-full rounded-[2rem] overflow-hidden aspect-[4/3] relative flex flex-col items-center justify-center shadow-sm">
+
       {!stream && !capturedBlob ? (
         <div className="flex flex-col items-center text-center p-8">
-          <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl flex items-center justify-center mb-6 text-blue-600 animate-bounce">
-            <Camera size={40} />
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #f1f5f9' }} className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm">
+            {mode === 'video' ? <Video size={32} color="#94a3b8" /> : <Camera size={32} color="#94a3b8" />}
           </div>
-          <h3 className="text-xl font-extrabold text-slate-900 mb-2">{label}</h3>
-          <p className="text-sm text-slate-500 font-medium mb-8 max-w-[200px]">We'll record a live proof for community safety.</p>
+          <h3 style={{ color: '#0f172a' }} className="text-xl font-bold mb-2">{label}</h3>
+          <p style={{ color: '#64748b' }} className="text-xs font-medium mb-8 max-w-[220px]">
+            Please capture a live {mode === 'video' ? 'video' : 'photo'} proof for security and community trust.
+          </p>
           <button
             onClick={startCamera}
-            className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-sm hover:bg-slate-800 transition-all active:scale-95"
+            style={{ backgroundColor: '#000000', color: '#ffffff' }}
+            className="px-8 py-3 rounded-full font-semibold text-sm hover:opacity-80 transition-all shadow-md"
           >
             Activate Camera
           </button>
         </div>
       ) : capturedBlob ? (
-        <div className="flex flex-col items-center text-center p-8 bg-green-50/50 w-full h-full justify-center animate-in fade-in zoom-in duration-500">
-          <div className="w-32 h-32 bg-white rounded-[3rem] shadow-2xl shadow-green-200 flex items-center justify-center mb-8">
-            <CheckCircle2 size={64} className="text-green-500" />
+        <div style={{ backgroundColor: '#ffffff' }} className="flex flex-col items-center text-center p-8 w-full h-full justify-center">
+          <div style={{ backgroundColor: '#f0fdf4', border: '2px solid #22c55e' }} className="w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-sm">
+            <CheckCircle2 size={48} color="#22c55e" />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 mb-2">Verified Successfully</h2>
-          <p className="text-sm text-green-700 font-bold uppercase tracking-widest mb-10">Encrypted Proof Captured</p>
+          <h2 style={{ color: '#0f172a' }} className="text-2xl font-bold mb-2">
+            {mode === 'video' ? 'Video' : 'Photo'} Captured
+          </h2>
+          <p style={{ color: '#64748b' }} className="text-sm font-medium mb-10">Asset verification successfully saved.</p>
+          
+          {mode === 'video' && (
+            <video 
+              src={URL.createObjectURL(capturedBlob)} 
+              controls 
+              className="w-48 h-32 object-cover rounded-xl border border-slate-200 shadow-sm mb-6 bg-black" 
+            />
+          )}
+
           <button
             onClick={() => { setCapturedBlob(null); startCamera(); }}
-            className="flex items-center gap-2 text-slate-400 hover:text-slate-900 font-black text-xs uppercase transition-all"
+            style={{ border: '1px solid #e2e8f0', color: '#475569', backgroundColor: '#ffffff' }}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs uppercase hover:bg-slate-50 transition-all"
           >
-            <RefreshCcw size={14} /> Restart
+            <RefreshCcw size={14} color="#475569" /> Retake
           </button>
         </div>
       ) : (
-        <div className="w-full h-full relative group">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+        <div style={{ backgroundColor: '#000000' }} className="w-full h-full relative flex items-center justify-center">
+          <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
 
-          <div className="absolute top-8 left-8 flex items-center gap-3">
-            <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-2xl flex items-center gap-2 shadow-xl">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Live Secure Feed</span>
+          <div className="absolute top-6 left-6 flex gap-2">
+            <div style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)' }} className="px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md">
+              <div style={{ backgroundColor: '#ef4444' }} className="w-2 h-2 rounded-full animate-pulse" />
+              <span style={{ color: '#ffffff' }} className="text-[10px] font-bold uppercase tracking-wider">Live Feed</span>
             </div>
+            
+            {isRecording && (
+              <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.5)' }} className="px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md">
+                <span style={{ color: '#fca5a5' }} className="text-[10px] font-bold uppercase tracking-wider">
+                  00:0{recordingTime} / 00:10
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center gap-8">
-            <button className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-all">
-              <ShieldAlert size={20} />
+          <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center gap-6">
+            <button onClick={stopCamera} disabled={isRecording} style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', opacity: isRecording ? 0.5 : 1 }} className="w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition-all">
+              <ShieldAlert size={18} color="#ffffff" />
             </button>
-            {mode === 'photo' ? (
-              <button
-                onClick={takePhoto}
-                className="w-20 h-20 rounded-full border-[6px] border-white/50 bg-white shadow-2xl hover:scale-110 active:scale-90 transition-all flex items-center justify-center"
-              >
-                <div className="w-14 h-14 rounded-full bg-red-500" />
-              </button>
-            ) : (
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`w-20 h-20 rounded-full border-[6px] border-white/50 shadow-2xl hover:scale-110 active:scale-90 transition-all flex items-center justify-center ${isRecording ? 'bg-white' : 'bg-red-500'}`}
-              >
-                {isRecording ? <div className="w-8 h-8 bg-red-600 rounded-lg" /> : <Video className="text-white" size={32} />}
-              </button>
-            )}
-            <button onClick={stopCamera} className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-all">
-              <RefreshCcw size={20} />
+
+            <button 
+              onClick={mode === 'video' ? (isRecording ? stopRecording : startRecording) : takePhoto} 
+              style={{ border: isRecording ? '4px solid rgba(239, 68, 68, 0.8)' : '4px solid rgba(255,255,255,0.4)' }} 
+              className="w-18 h-18 rounded-full p-1 transition-all hover:scale-105 active:scale-95"
+            >
+              <div style={{ backgroundColor: '#ffffff' }} className="w-full h-full rounded-full flex items-center justify-center">
+                {mode === 'video' && isRecording ? (
+                   <Square size={20} color="#ef4444" fill="#ef4444" />
+                ) : (
+                  <div style={{ backgroundColor: mode === 'video' ? '#ef4444' : '#ffffff', border: mode === 'photo' ? '2px solid #e2e8f0' : 'none' }} className="w-14 h-14 rounded-full" />
+                )}
+              </div>
+            </button>
+
+            <button disabled={isRecording} onClick={() => {}} style={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', opacity: isRecording ? 0.5 : 1 }} className="w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition-all">
+              <RefreshCcw size={18} color="#ffffff" />
             </button>
           </div>
         </div>

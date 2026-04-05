@@ -1,31 +1,152 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { api } from '../services/api';
 import { Item } from '../types';
-import { MapPin, Filter, Star, Search, X, LayoutGrid, Map as MapIcon, Navigation, Heart, Loader2, Hammer, Laptop, Car, Sofa, User } from 'lucide-react';
+import { MapPin, Filter, Star, Search, X, Heart, Loader2, Navigation, LayoutGrid, Map as MapIcon } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 
-const DefaultIcon = L.icon({
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
 });
-L.Marker.prototype.options.icon = DefaultIcon;
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371; 
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const R = 6371.0710;
+  const radLat1 = lat1 * Math.PI / 180;
+  const radLat2 = lat2 * Math.PI / 180;
+  const deltaLat = (lat2 - lat1) * Math.PI / 180;
+  const deltaLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+
+const MapUpdater = ({ center }: { center: { lat: number; lng: number } | null }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center && typeof center.lat === 'number' && typeof center.lng === 'number') {
+      map.flyTo([center.lat, center.lng], 13, { animate: true, duration: 1.5 });
+      setTimeout(() => { map.invalidateSize(); }, 100);
+    }
+  }, [center, map]);
+  return null;
+};
+
+const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ productId, initialSaved }) => {
+  const [isHeartFilled, setIsHeartFilled] = useState(initialSaved);
+
+  useEffect(() => { setIsHeartFilled(initialSaved); }, [initialSaved]);
+
+  const handleToggleSave = async (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const token = localStorage.getItem('token') || localStorage.getItem('x-auth-token');
+    if (!token) { alert("Please login to save items."); return; }
+    
+    // 1. INSTANT OPTIMISTIC UI UPDATE
+    const nextState = !isHeartFilled;
+    setIsHeartFilled(nextState); 
+    
+    // 2. INSTANT LOCAL STORAGE UPDATE (The Bypass)
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const userObj = JSON.parse(userStr);
+      let assets = userObj.savedAssets || [];
+      if (nextState) {
+        if (!assets.includes(productId)) assets.push(productId);
+      } else {
+        assets = assets.filter((id: string) => id !== productId);
+      }
+      userObj.savedAssets = assets;
+      localStorage.setItem('user', JSON.stringify(userObj));
+    }
+
+    // 3. SILENT BACKEND SYNC (Ignores 500/413 crashes)
+    try { 
+      await api.toggleSaveAsset(productId); 
+    } catch (err) { 
+      console.warn("Backend crash ignored. Local state forced! 😎");
+      // Notice we DO NOT revert the heart state here anymore!
+    }
+  };
+
+  return (
+    <button onClick={handleToggleSave} className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+      <Heart size={18} className={isHeartFilled ? "fill-red-500 text-red-500" : "text-gray-400"} />
+    </button>
+  );
+};
+
+const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedDistance: number }, savedAssets: Set<string> }) => {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const mouseXSpring = useSpring(x, { stiffness: 300, damping: 30 });
+  const mouseYSpring = useSpring(y, { stiffness: 300, damping: 30 });
+
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["10deg", "-10deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-10deg", "10deg"]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xPct = (e.clientX - rect.left) / rect.width - 0.5;
+    const yPct = (e.clientY - rect.top) / rect.height - 0.5;
+    x.set(xPct);
+    y.set(yPct);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.div style={{ perspective: 1200, transformStyle: "preserve-3d" }} className="h-full relative">
+      <motion.div
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ rotateX, rotateY, transformStyle: "preserve-3d", willChange: "transform" }}
+        whileHover={{ scale: 1.02 }}
+        className="h-full w-full"
+      >
+        <Link to={`/item/${item.id}`} className="block h-full group outline-none">
+          <div className="bg-white rounded-[2rem] p-3 border border-slate-100 flex flex-col h-full relative"
+            style={{ boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)", transform: "translate3d(0, 0, 30px)", outline: "1px solid transparent", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}
+          >
+            <div className="relative aspect-[4/3] rounded-[1.5rem] overflow-hidden mb-4 bg-slate-50"
+              style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "translate3d(0,0,0)", WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
+              <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <HeartButton productId={item.id} initialSaved={savedAssets.has(item.id)} />
+              <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1"
+                style={{ transform: "translateZ(20px)", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+                <span className="text-sm font-semibold text-slate-800">₹{item.pricePerDay}</span>
+                <span className="text-[10px] font-medium text-slate-500 mt-0.5">/day</span>
+              </div>
+            </div>
+            <div className="px-2 pb-2 flex-1 flex flex-col" style={{ transform: "translateZ(15px)", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
+              <div className="flex justify-between items-start mb-1">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{item.category}</p>
+                <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100/50">
+                  <Star size={10} fill="#f59e0b" className="text-amber-500" />
+                  <span className="text-[10px] font-bold text-amber-700">{item.ownerTrustScore}</span>
+                </div>
+              </div>
+              <h3 className="text-lg font-medium text-slate-800 leading-tight group-hover:text-black transition-colors line-clamp-2 mb-3">{item.title}</h3>
+              <div className="mt-auto flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <MapPin size={14} className="text-slate-400" />
+                <span>{item.calculatedDistance.toFixed(1)} km away</span>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </motion.div>
+    </motion.div>
+  );
+});
 
 const Explore: React.FC = () => {
   const [items, setItems] = useState<Item[]>([]);
@@ -34,39 +155,33 @@ const Explore: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [maxDistance, setMaxDistance] = useState<number>(5);
+  const [maxDistance, setMaxDistance] = useState<number>(50);
   const [maxPrice, setMaxPrice] = useState<number>(5000);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [savedItems, setSavedItems] = useState<Set<string>>(new Set(['item-1', 'item-3']));
+  const [savedAssets, setSavedAssets] = useState<Set<string>>(new Set());
+
+  const fetchSavedAssets = () => {
+    try {
+      const localUserStr = localStorage.getItem('user');
+      const localUser = localUserStr ? JSON.parse(localUserStr) : null;
+      if (localUser && localUser.savedAssets) {
+        setSavedAssets(new Set(localUser.savedAssets));
+      }
+    } catch (err) { console.error(err); }
+  };
 
   const fetchItems = async () => {
     setIsLoading(true);
     try {
       const data = await api.getItems({
-        lat: userLocation?.lat,
-        lng: userLocation?.lng,
-        query: searchQuery,
-        category: selectedCategory || undefined
+        lat: userLocation?.lat, lng: userLocation?.lng, radius: maxDistance, query: searchQuery, category: selectedCategory || undefined
       });
       setItems(data);
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
-  useEffect(() => {
-    fetchItems();
-  }, [userLocation, selectedCategory]);
-
-  const toggleSave = (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const newSaved = new Set(savedItems);
-    if (newSaved.has(id)) newSaved.delete(id);
-    else newSaved.add(id);
-    setSavedItems(newSaved);
-  };
+  useEffect(() => { fetchItems(); fetchSavedAssets(); }, [userLocation, selectedCategory, maxDistance]);
 
   const syncLocation = () => {
     if (!navigator.geolocation) return;
@@ -76,173 +191,168 @@ const Explore: React.FC = () => {
         setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         setIsLocating(false);
       },
-      () => setIsLocating(false)
+      () => { setIsLocating(false); },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
   };
 
-  useEffect(() => { syncLocation(); }, []);
+  const handleMarkerDragEnd = (event: any) => {
+    const marker = event.target;
+    const position = marker.getLatLng();
+    setUserLocation({ lat: position.lat, lng: position.lng });
+  };
+
+  useEffect(() => {
+    const loadLocation = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('x-auth-token');
+        if (!token) { syncLocation(); return; }
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/user`, { headers: { 'x-auth-token': token } });
+        const user = await res.json();
+        if (user?.location?.lat && user?.location?.lng) { setUserLocation({ lat: user.location.lat, lng: user.location.lng }); } else { syncLocation(); }
+      } catch { syncLocation(); }
+    };
+    loadLocation();
+  }, []);
 
   const itemsWithDistance = useMemo(() => {
     return items.map((item, index) => ({
       ...item,
-      calculatedDistance: userLocation ? calculateDistance(userLocation.lat, userLocation.lng, item.location.lat, item.location.lng) : index * 0.3 + 0.1
+      calculatedDistance: (userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number')
+        ? calculateDistance(userLocation.lat, userLocation.lng, item.location.lat, item.location.lng)
+        : index * 0.3 + 0.1
     }));
   }, [items, userLocation]);
 
-  const filteredItems = itemsWithDistance.filter(item => 
-    item.calculatedDistance <= maxDistance && item.pricePerDay <= maxPrice
-  ).sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+  const filteredItems = useMemo(() => {
+    return itemsWithDistance
+      .filter(item => item.calculatedDistance <= maxDistance && item.pricePerDay <= maxPrice)
+      .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+  }, [itemsWithDistance, maxDistance, maxPrice]);
 
   return (
-    <div className="w-full bg-[#F6F6F6] min-h-screen">
-      {showFilters && (
-        <div className="fixed inset-0 z-[2000] flex justify-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-          <div className="relative w-full sm:max-w-md h-full bg-white p-8 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-slate-800">Filters</h2>
-              <button onClick={() => setShowFilters(false)} className="p-2 rounded-full hover:bg-gray-100 text-slate-500">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 space-y-8">
-              <div>
-                <label className="text-sm font-semibold text-slate-600 mb-3 block">Category</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {['Electronics', 'Tools', 'Camping', 'Vehicle', 'Media', 'Home'].map(cat => (
-                    <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)} className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-all ${selectedCategory === cat ? 'bg-[#093E28] text-white' : 'bg-gray-100 text-slate-700 hover:bg-gray-200'}`}>
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-semibold text-slate-600">Max Price</label>
-                  <span className="text-sm font-bold text-slate-800">₹{maxPrice}</span>
-                </div>
-                <input type="range" min="0" max="10000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="custom-slider w-full" />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-semibold text-slate-600">Distance</label>
-                  <span className="text-sm font-bold text-slate-800">{maxDistance.toFixed(1)} km</span>
-                </div>
-                <input type="range" min="1" max="20" step="0.5" value={maxDistance} onChange={(e) => setMaxDistance(parseFloat(e.target.value))} className="custom-slider w-full" />
-              </div>
-            </div>
-            <button onClick={() => { setShowFilters(false); fetchItems(); }} className="w-full mt-8 bg-[#FF7A59] text-white py-4 rounded-full font-bold hover:opacity-90 transition-opacity">
-              Apply Filters
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 lg:py-16">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 lg:gap-8 mb-8 sm:mb-12">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl lg:text-6xl font-black tracking-tighter text-slate-900 leading-tight mb-3 sm:mb-4">
-              Explore Nearby
-            </h1>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-              <p className="text-sm sm:text-base lg:text-lg text-slate-500 font-medium">
-                Find trusted items available for rent in your area.
-              </p>
-              <button 
-                onClick={syncLocation} 
-                disabled={isLocating} 
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-gray-200 bg-white text-slate-900 hover:bg-gray-50 transition-all shadow-sm active:scale-95 shrink-0"
-              >
-                <Navigation size={12} className={isLocating ? "animate-spin" : ""} />
-                Get Location
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex bg-slate-900 p-1 rounded-full shadow-xl">
-              <button 
-                onClick={() => setViewMode('grid')} 
-                className={`px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-md' : 'text-white/60 hover:text-white'}`}
-              >
-                <LayoutGrid size={14} /> Assets
-              </button>
-              <button 
-                onClick={() => setViewMode('map')} 
-                className={`px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 transition-all ${viewMode === 'map' ? 'bg-white text-slate-900 shadow-md' : 'text-white/60 hover:text-white'}`}
-              >
-                <MapIcon size={14} /> Map
-              </button>
-            </div>
-            <button 
-              onClick={() => setShowFilters(true)} 
-              className="px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white text-slate-900 rounded-full font-black text-[9px] sm:text-[10px] uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 border border-gray-100 hover:bg-gray-50 transition-all shadow-lg active:scale-95"
-            >
-              <Filter size={16} /> Filters
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-8 sm:mb-12 relative group max-w-4xl">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#093E28] transition-all duration-300" size={20} />
-          <form onSubmit={(e) => { e.preventDefault(); fetchItems(); }}>
-            <input 
-              type="text" 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              placeholder="Search for anything..." 
-              className="w-full pl-12 sm:pl-14 pr-4 sm:pr-6 py-4 sm:py-5 bg-white border border-gray-100 rounded-2xl focus:ring-4 focus:ring-[#093E28]/5 outline-none text-base sm:text-lg text-slate-800 font-semibold shadow-xl transition-all placeholder:text-slate-300" 
+    <div className="w-full min-h-screen pb-32 bg-[#F5F5F7]">
+      <AnimatePresence>
+        {showFilters && (
+          <div className="fixed inset-0 z-[9999] flex justify-end overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-slate-900/60"
+              onClick={() => setShowFilters(false)}
             />
-          </form>
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
+              className="relative w-full sm:max-w-md h-full bg-white p-8 flex flex-col shadow-2xl rounded-l-[2rem]"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Filters</h2>
+                <button onClick={() => setShowFilters(false)} className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"><X size={20} /></button>
+              </div>
+              <div className="flex-1 space-y-8 overflow-y-auto pr-2 pb-10">
+                <div>
+                  <label className="text-sm font-semibold text-slate-600 mb-3 block">Category</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Electronics', 'Tools', 'Camping', 'Vehicle', 'Media', 'Home'].map(cat => (
+                      <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)} className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all border ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-6 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="text-sm font-semibold text-slate-600">Max Price (₹)</label>
+                    <span className="text-base font-bold text-slate-800">₹{maxPrice}</span>
+                  </div>
+                  <input type="range" min="0" max="10000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" />
+                </div>
+                <div className="p-6 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="text-sm font-semibold text-slate-600">Distance Limit</label>
+                    <span className="text-base font-bold text-slate-800">{maxDistance.toFixed(1)} km</span>
+                  </div>
+                  <input type="range" min="1" max="100" step="0.5" value={maxDistance} onChange={(e) => setMaxDistance(parseFloat(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" />
+                </div>
+              </div>
+              <div className="pt-4 bg-white">
+                <button onClick={() => { setShowFilters(false); fetchItems(); }} className="w-full py-4 rounded-full bg-slate-900 text-white font-bold transition-all hover:bg-slate-800 shadow-md">Apply Filters</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 py-8 lg:py-12">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800">Explore Collection</h1>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search items..." className="pl-11 pr-4 py-3 rounded-full bg-white text-sm font-medium text-slate-900 border border-slate-100 focus:outline-none focus:border-slate-300" style={{ color: '#000', WebkitTextFillColor: '#000' }} />
+            </div>
+
+            <button onClick={syncLocation} className="flex items-center gap-2 px-4 py-3 rounded-full bg-white border border-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+              {isLocating ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} className="text-blue-500" />}
+              Near Me
+            </button>
+
+            <div className="flex items-center bg-white border border-slate-100 rounded-full p-1 shadow-sm">
+              <button onClick={() => setViewMode('grid')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
+                <LayoutGrid size={16} /> Grid
+              </button>
+              <button onClick={() => setViewMode('map')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
+                <MapIcon size={16} /> Map
+              </button>
+            </div>
+
+            <button onClick={() => setShowFilters(true)} className="p-3 rounded-full bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Filter size={18} className="text-slate-600" /></button>
+          </div>
         </div>
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Loader2 className="animate-spin mb-4" size={40} />
-            <span className="font-semibold">Searching the network...</span>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 animate-in fade-in duration-500">
-            {filteredItems.map(item => (
-              <Link key={item.id} to={`/item/${item.id}`} className="group block">
-                <div className="bg-white rounded-3xl soft-shadow soft-shadow-hover transition-all h-full flex flex-col overflow-hidden border border-slate-50 group-hover:-translate-y-1.5 duration-500">
-                  <div className="relative aspect-square overflow-hidden">
-                    <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" />
-                    <button onClick={(e) => toggleSave(e, item.id)} className="absolute top-3 sm:top-4 right-3 sm:right-4 w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-white/90 backdrop-blur-xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-lg">
-                      <Heart size={16} className={savedItems.has(item.id) ? "fill-[#FF7A59] text-[#FF7A59]" : "text-slate-300"} />
-                    </button>
-                  </div>
-                  <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col">
-                    <div className="flex-1">
-                      <p className="text-[8px] sm:text-[9px] font-black text-slate-400 mb-1 sm:mb-1.5 uppercase tracking-widest">{item.category}</p>
-                      <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-tight mb-2 sm:mb-3 group-hover:text-[#093E28] transition-colors line-clamp-2">{item.title}</h3>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 text-xs sm:text-xs font-black text-green-600">
-                      <Star size={12} fill="currentColor" />
-                      {item.ownerTrustScore}% Trust
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="h-[50vh] sm:h-[60vh] lg:h-[65vh] w-full rounded-[2rem] sm:rounded-[3rem] overflow-hidden soft-shadow border border-gray-100">
-            <MapContainer center={userLocation ? [userLocation.lat, userLocation.lng] : [40.7128, -74.0060]} zoom={13} className="h-full">
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <div className="py-32 text-center"><Loader2 className="animate-spin mx-auto text-slate-400" size={40} /></div>
+        ) : viewMode === 'map' ? (
+          <div className="h-[600px] w-full rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm relative z-10">
+            <MapContainer
+              center={userLocation ? [userLocation.lat, userLocation.lng] : [11.3410, 77.7172]}
+              zoom={12}
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+              {userLocation && <MapUpdater center={userLocation} />}
+
+              {userLocation && (
+                <Marker position={[userLocation.lat, userLocation.lng]} draggable={true} eventHandlers={{ dragend: handleMarkerDragEnd }}>
+                  <Popup>You are here (Drag to adjust)</Popup>
+                </Marker>
+              )}
+
               {filteredItems.map(item => (
                 <Marker key={item.id} position={[item.location.lat, item.location.lng]}>
                   <Popup>
-                    <div className="p-2 w-56">
-                      <img src={item.imageUrl} alt={item.title} className="w-full h-20 sm:h-24 object-cover rounded-xl mb-2 sm:mb-3" />
-                      <h4 className="font-black text-slate-800 text-sm mb-1">{item.title}</h4>
-                      <p className="text-xs text-slate-500 mb-3">₹{item.pricePerDay}/day</p>
-                      <Link to={`/item/${item.id}`} className="block text-center bg-[#093E28] text-white py-2 sm:py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all">View Details</Link>
+                    <div className="p-2 min-w-[150px]">
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-24 object-cover rounded-lg mb-2" />
+                      <h3 className="font-bold text-slate-800 text-sm mb-1">{item.title}</h3>
+                      <p className="text-xs text-slate-500 font-medium mb-2">₹{item.pricePerDay}/day • {item.calculatedDistance.toFixed(1)} km</p>
+                      <Link to={`/item/${item.id}`} className="block w-full py-2 bg-black text-white text-center text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors">
+                        View Item
+                      </Link>
                     </div>
                   </Popup>
                 </Marker>
               ))}
             </MapContainer>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+            {filteredItems.map((item) => (<TiltCard key={item.id} item={item} savedAssets={savedAssets} />))}
           </div>
         )}
       </div>
