@@ -27,8 +27,8 @@ router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
     const product = await newProduct.save();
     res.json({ msg: "Product listed successfully!", product });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: err.message }); // ✅ Fixed
+    console.error("PRODUCT ADD ERROR:", err.stack); // ✅ err.stack
+    res.status(500).json({ msg: err.message });
   }
 });
 
@@ -53,8 +53,8 @@ router.get("/nearby", async (req, res) => {
 
     res.json(products);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: err.message }); // ✅ Fixed
+    console.error("NEARBY ERROR:", err.stack);
+    res.status(500).json({ msg: err.message });
   }
 });
 
@@ -79,8 +79,8 @@ router.get("/all", async (req, res) => {
 
     res.json(products);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: err.message }); // ✅ Fixed
+    console.error("ALL PRODUCTS ERROR:", err.stack);
+    res.status(500).json({ msg: err.message });
   }
 });
 
@@ -92,8 +92,8 @@ router.get("/:id", async (req, res) => {
     if (!product) return res.status(404).json({ msg: "Product not found" });
     res.json(product);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: err.message }); // ✅ Fixed
+    console.error("PRODUCT BY ID ERROR:", err.stack);
+    res.status(500).json({ msg: err.message });
   }
 });
 
