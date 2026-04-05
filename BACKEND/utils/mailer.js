@@ -41,6 +41,7 @@ const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification"
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 12px; text-align: center;">
             <strong>Security Notice:</strong> Never share this code with anyone else. 
+            AroundU staff will never ask for this code.
           </p>
         </div>
       `
