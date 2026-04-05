@@ -1,32 +1,12 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  family: 4, // 🔥 THE MAGIC FIX: Ithu thaan IPv6-a block panni IPv4-la anuppum!
-  auth: {
-    user: String(process.env.GMAIL_USER).trim(),
-    pass: String(process.env.GMAIL_APP_PASSWORD).trim()
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
-// Verify connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ SMTP Connection Error:", error.message);
-  } else {
-    console.log("✅ SMTP Server is ready");
-  }
-});
+// Render env variable la irunthu API key edukkurom
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification", message = "Your verification code is:") => {
   try {
-    await transporter.sendMail({
-      from: `"AroundU" <${process.env.GMAIL_USER}>`,
+    const data = await resend.emails.send({
+      from: 'onboarding@resend.dev', // ⚠️ Note: Ippothiki ithu apdiye irukatum.
       to: toEmail,
       subject: subject,
       html: `
@@ -46,7 +26,10 @@ const sendOtpEmail = async (toEmail, name, otpCode, subject = "OTP Verification"
         </div>
       `
     });
-    console.log(`✅ Email successfully sent to ${toEmail}`);
+
+    console.log(`✅ Resend Email successfully sent to ${toEmail}`);
+    console.log("Resend Response ID:", data.id); // For debugging
+    
   } catch (err) {
     console.error("❌ Error sending email inside sendOtpEmail function:", err);
     throw err; 
