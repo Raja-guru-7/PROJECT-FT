@@ -2,7 +2,7 @@ import { MOCK_ITEMS, MOCK_CURRENT_USER, MOCK_TRANSACTIONS } from '../mockData';
 import { Item, Transaction, User } from '../types';
 
 // 🔥 FIXED: Using Environment Variable instead of hardcoded URL
-const BASE_URL = (import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com') + '/api';
+const BASE_URL = 'https://aroundu-backend-hd26.onrender.com/api';
 
 class ApiService {
   private getToken(): string | null {
