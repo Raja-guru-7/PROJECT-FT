@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Item } from '../types';
 import { ChevronLeft, ShieldCheck, MapPin, Star, Loader2, Wallet } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const cardStyle = {
+  background: '#ffffff',
+  borderRadius: '2rem',
+  border: '1px solid #f1f5f9',
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+};
 
 const ItemDetail: React.FC = () => {
   const { id } = useParams();
@@ -13,12 +21,24 @@ const ItemDetail: React.FC = () => {
   const [days, setDays] = useState(2);
   const [securityStrategy, setSecurityStrategy] = useState<'insurance' | 'deposit'>('insurance');
 
+  // ✅ get logged-in user id from localStorage correctly
+  const getLoggedInUserId = (): string => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const parsed = JSON.parse(userStr);
+        return parsed.id || parsed._id || '';
+      }
+    } catch { }
+    return localStorage.getItem('userId') || '';
+  };
+
   useEffect(() => {
     const fetchItem = async () => {
       if (!id) return;
       try {
         const data = await api.getItemById(id);
-        setItem(data);
+        setItem(data ?? null);
       } catch (err) {
         console.error('Failed to fetch item');
       } finally {
@@ -29,44 +49,59 @@ const ItemDetail: React.FC = () => {
   }, [id]);
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Loader2 className="animate-spin text-[#093E28]" size={40} />
+    <div className="flex items-center justify-center min-h-screen bg-[#F5F5F7] z-10">
+      <div className="flex flex-col items-center">
+        <Loader2 className="animate-spin text-slate-400 mb-4" size={40} />
+        <span className="font-semibold text-slate-500 text-sm">Loading details...</span>
+      </div>
     </div>
   );
 
   if (!item) return (
-    <div className="p-10 text-center font-bold text-slate-800">Item not found</div>
+    <div className="flex items-center justify-center min-h-screen bg-[#F5F5F7] z-10">
+      <div style={{ ...cardStyle, padding: '3rem', textAlign: 'center', maxWidth: '400px' }}>
+        <h2 className="text-xl font-bold text-slate-800">Asset Not Found</h2>
+        <p className="text-slate-500 mt-2 text-sm">The requested asset ID does not exist in the registry.</p>
+        <button
+          onClick={() => navigate('/explore')}
+          className="mt-6 px-6 py-3 rounded-full font-medium text-white bg-black hover:bg-slate-800 transition-colors w-full"
+        >
+          Return to Explore
+        </button>
+      </div>
+    </div>
   );
 
-  const handleCheckout = async () => {
+  const handleInitializeProtocol = async () => {
     setIsInitializing(true);
     try {
       const token = localStorage.getItem('token');
+      const lenderId = ownerId;
+      const renterId = getLoggedInUserId();
 
-      // ownerId — product model-la 'owner' field, api response-la item.owner irukum
-      const ownerId = (item as any).owner || (item as any).ownerId;
+      const payload = {
+        productId: item.id,
+        renterId,
+        lenderId,
+        totalPrice: totalDue,
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + days * 86400000).toISOString()
+      };
 
-      const res = await fetch('http://localhost:5000/api/transaction/create', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/transaction/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
-        body: JSON.stringify({
-          itemId: item.id,
-          itemTitle: item.title,
-          ownerId: ownerId,          // ✅ NOW SENDING ownerId
-          startDate: new Date().toISOString(),
-          endDate: new Date(Date.now() + days * 86400000).toISOString(),
-          totalAmount: totalDue
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(payload)
       });
-      const json = await res.json();
-      if (res.ok) {
-        localStorage.setItem('currentOTP', json.otpCode);  // ✅ ADD HERE
-  navigate(`/handover/${json.transaction._id}`);
+      const data = await res.json();
+      if (res.status === 201 || res.status === 200) {
+        localStorage.setItem('currentOTP', data.handoverOTP || data.transaction?.handoverOTP || data.otpCode);
+        navigate(`/handover/${data._id || data.transaction?._id}`);
       } else {
-        alert(json.msg || 'Failed to create transaction');
+        alert(data.msg || 'Transaction Failed');
       }
     } catch {
-      alert('Server error. Try again.');
+      alert('Network error. Transaction rejected.');
     } finally {
       setIsInitializing(false);
     }
@@ -78,131 +113,187 @@ const ItemDetail: React.FC = () => {
   const insuranceFee = 15;
   const totalDue = rentalFee + (securityStrategy === 'insurance' ? insuranceFee : 0) - trustBonus;
 
-  const ownerAvatar = `https://ui-avatars.com/api/?name=${item.ownerName || 'Owner'}&background=093E28&color=fff&size=128`;
+  // ✅ FIX: extract ownerId as clean string from populated owner object or plain string
+  const rawOwner = item.owner || item.ownerId;
+  const ownerId: string = typeof rawOwner === 'object' && rawOwner !== null
+    ? (rawOwner._id || rawOwner.id || '').toString()
+    : (rawOwner || '').toString();
 
-  // ownerId for navigation — product model 'owner' field
-  const ownerId = (item as any).owner || (item as any).ownerId;
+  // ✅ FIX: use ownerAvatar mapped in api.ts, fallback to ui-avatars
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.ownerName || 'Unknown')}&background=0f172a&color=fff&size=128`;
+  const ownerAvatar = item.ownerAvatar || fallbackAvatar;
+
+  const loggedInUserId = getLoggedInUserId();
+  const isOwnItem = !!(ownerId && loggedInUserId && ownerId === loggedInUserId);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <button
-        type="button"
-        onClick={() => navigate('/explore')}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8"
-      >
-        <ChevronLeft size={20} /> Back to Explore
-      </button>
+    <div className="bg-[#F5F5F7] min-h-screen z-10 pt-4 pb-24">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-4 lg:py-8">
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 lg:gap-16">
-        <div className="space-y-8">
-          {/* Item Image */}
-          <div className="rounded-3xl overflow-hidden soft-shadow bg-gray-100">
-            {item.imageUrl ? (
-              <img src={item.imageUrl} alt={item.title} className="w-full aspect-video object-cover" />
-            ) : (
-              <div className="w-full aspect-video flex items-center justify-center text-slate-400 font-bold text-xl">
-                No Image
+        <button
+          onClick={() => navigate('/explore')}
+          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors mb-8 group"
+        >
+          <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back to Explore
+        </button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12">
+
+          {/* Left Column */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-8">
+
+            {/* Image */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+              <div className="bg-white p-2 rounded-[2.5rem] shadow-sm border border-slate-100">
+                <div className="w-full aspect-[16/10] sm:aspect-video rounded-[2rem] bg-slate-50 relative overflow-hidden flex items-center justify-center">
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl} alt={item.title}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center">
+                      <span className="text-slate-400 font-medium text-sm">No image available</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </motion.div>
+
+            {/* Info */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <p className="font-semibold text-slate-400 mb-2 text-xs uppercase tracking-wide">{item.category}</p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-800 mb-4 leading-tight">{item.title}</h1>
+
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-slate-600 bg-white border border-slate-200 font-medium text-sm mb-6 shadow-sm">
+                <MapPin size={16} className="text-slate-400" /> {item.location?.address || 'Location unavailable'}
+              </div>
+
+              <div className="relative pl-6 border-l-4 border-slate-200">
+                <p className="text-slate-600 leading-relaxed max-w-2xl text-sm lg:text-base">{item.description}</p>
+              </div>
+            </motion.div>
+
+            {/* Provider */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <div style={cardStyle} className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      {/* ✅ FIX: real avatar from ownerAvatar field */}
+                      <img
+                        src={ownerAvatar}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-slate-100"
+                        alt={item.ownerName}
+                        onError={(e) => {
+                          if (e.currentTarget.src !== fallbackAvatar) e.currentTarget.src = fallbackAvatar;
+                        }}
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
+                        <ShieldCheck size={12} className="text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Provided By</h4>
+                      <div className="text-lg font-bold text-slate-800 flex items-center gap-3">
+                        {item.ownerName || 'Unknown'}
+                        <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <Star size={10} fill="currentColor" /> {item.ownerTrustScore || 30}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* ✅ FIX: navigate with correct string ownerId */}
+                  <button
+                    onClick={() => ownerId ? navigate(`/user/${ownerId}`) : null}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-full font-medium text-sm text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors"
+                  >
+                    View Profile
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
-          <div>
-            <p className="font-semibold text-slate-500 mb-2 text-sm sm:text-base">{item.category}</p>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-slate-900 mb-3 sm:mb-4">{item.title}</h1>
-            <div className="flex items-center gap-2 text-slate-600 font-semibold text-sm sm:text-base">
-              <MapPin size={14} className="sm:size-16" /> {item.location?.address || 'Location not set'}
-            </div>
-            <p className="text-slate-600 leading-relaxed max-w-2xl text-sm sm:text-base">{item.description}</p>
-          </div>
+          {/* Right Column - Booking Terminal */}
+          <div className="lg:col-span-5 xl:col-span-4 mt-4 lg:mt-0">
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-24">
+              <div style={cardStyle} className="p-6 sm:p-8">
 
-          {/* Owner Card */}
-          <div className="bg-white rounded-3xl soft-shadow p-4 sm:p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Item Provider</h3>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <img
-                  src={ownerAvatar}
-                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full"
-                  alt={item.ownerName}
-                />
-                <div>
-                  <h4 className="text-lg sm:text-xl font-bold text-slate-800">{item.ownerName || 'Unknown Owner'}</h4>
-                  <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-green-700 mt-1">
-                    <Star size={14} fill="currentColor" />
-                    Trust Score: {item.ownerTrustScore || 30}
+                <div className="mb-8">
+                  <p className="text-sm font-medium text-slate-500 mb-1">Standard Rate</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl sm:text-5xl font-bold text-slate-800 tracking-tight">₹{item.pricePerDay}</span>
+                    <span className="text-sm font-semibold text-slate-400">/ day</span>
                   </div>
                 </div>
-              </div>
-              <button
-                onClick={() => ownerId ? navigate(`/user/${ownerId}`) : null}
-                className="px-3 sm:px-5 py-2 sm:py-2.5 bg-gray-100 text-slate-700 rounded-full font-bold text-sm hover:bg-gray-200"
-              >
-                View Profile
-              </button>
-            </div>
-          </div>
-        </div>
 
-        {/* Booking Panel */}
-        <div>
-          <div className="sticky top-20 sm:top-28 bg-white rounded-3xl soft-shadow p-6 sm:p-8">
-            <div className="flex items-baseline gap-2 mb-4 sm:mb-6">
-              <span className="text-4xl sm:text-5xl font-black text-slate-900">₹{item.pricePerDay}</span>
-              <span className="text-sm sm:text-base text-slate-500 font-semibold">/ day</span>
-            </div>
+                <div className="space-y-6">
+                  {/* Strategy Toggle */}
+                  <div>
+                    <label className="text-sm font-medium text-slate-600 mb-3 block">Security Option</label>
+                    <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-100">
+                      <button
+                        onClick={() => setSecurityStrategy('insurance')}
+                        className={`flex-1 py-2.5 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 ${securityStrategy === 'insurance' ? 'bg-white text-black shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        <ShieldCheck size={16} /> Insurance
+                      </button>
+                      <button
+                        onClick={() => setSecurityStrategy('deposit')}
+                        className={`flex-1 py-2.5 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 ${securityStrategy === 'deposit' ? 'bg-white text-black shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        <Wallet size={16} /> Deposit
+                      </button>
+                    </div>
+                  </div>
 
-            {/* Security Toggle */}
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-slate-600 mb-2 block">Security</label>
-              <div className="flex bg-gray-100 p-1 rounded-full border border-gray-200">
-                <button
-                  onClick={() => setSecurityStrategy('insurance')}
-                  className={`flex-1 py-2.5 rounded-full font-bold text-sm flex items-center justify-center gap-2 ${securityStrategy === 'insurance' ? 'bg-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  <ShieldCheck size={16} /> Insurance
-                </button>
-                <button
-                  onClick={() => setSecurityStrategy('deposit')}
-                  className={`flex-1 py-2.5 rounded-full font-bold text-sm flex items-center justify-center gap-2 ${securityStrategy === 'deposit' ? 'bg-white shadow' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  <Wallet size={16} /> Deposit
-                </button>
-              </div>
-            </div>
+                  {/* Days */}
+                  <div>
+                    <label className="text-sm font-medium text-slate-600 mb-3 block">Duration</label>
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="font-semibold text-slate-800 ml-3">{days} <span className="text-slate-400 font-medium">days</span></span>
+                      <div className="flex gap-1">
+                        <button onClick={() => setDays(d => Math.max(1, d - 1))}
+                          className="w-10 h-10 rounded-lg text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-lg transition-colors">-</button>
+                        <button onClick={() => setDays(d => d + 1)}
+                          className="w-10 h-10 rounded-lg text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-lg transition-colors">+</button>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Duration */}
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-slate-600 mb-2 block">Rental Duration</label>
-              <div className="flex items-center justify-between bg-gray-50 p-2 sm:p-3 rounded-xl border border-gray-200">
-                <span className="font-bold text-sm sm:text-base text-slate-800">{days} Days</span>
-                <div className="flex gap-2">
-                  <button onClick={() => setDays(d => Math.max(1, d - 1))} className="w-6 h-6 sm:w-8 sm:h-8 rounded-md bg-gray-200 hover:bg-gray-300 font-bold text-sm sm:text-base">-</button>
-                  <button onClick={() => setDays(d => d + 1)} className="w-6 h-6 sm:w-8 sm:h-8 rounded-md bg-gray-200 hover:bg-gray-300 font-bold text-sm sm:text-base">+</button>
+                  {/* Price Breakdown */}
+                  <div className="space-y-3 py-6 border-t border-b border-slate-100">
+                    <PriceRow label={`Base Rent (${days} days)`} value={`₹${rentalFee.toFixed(2)}`} />
+                    {securityStrategy === 'insurance'
+                      ? <PriceRow label="Protection Plan" value={`₹${insuranceFee.toFixed(2)}`} />
+                      : <PriceRow label="Refundable Deposit" value={`₹${depositAmount.toFixed(2)}`} />
+                    }
+                    <PriceRow label="Trust Bonus" value={`-₹${trustBonus.toFixed(2)}`} isBonus />
+                  </div>
+
+                  <div className="flex justify-between items-center py-2">
+                    <span className="font-semibold text-slate-600 text-sm">Total Due</span>
+                    <span className="font-bold text-slate-800 text-2xl">₹{totalDue.toFixed(2)}</span>
+                  </div>
+
+                  {/* ✅ FIX: correct own-item check using string IDs */}
+                  {isOwnItem ? (
+                    <div className="text-center text-sm font-medium text-slate-400 py-4 bg-slate-50 rounded-xl border border-slate-100">
+                      This is your own asset
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleInitializeProtocol}
+                      disabled={isInitializing}
+                      className="w-full py-4 mt-2 rounded-full font-semibold text-white flex items-center justify-center gap-2 transition-all bg-black hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed shadow-md"
+                    >
+                      {isInitializing ? <Loader2 className="animate-spin" size={20} /> : 'Proceed to Checkout'}
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Price Breakdown */}
-            <div className="space-y-3 py-3 sm:py-4 border-t border-gray-100">
-              <PriceRow label={`Rental fee (${days} days)`} value={`₹${rentalFee.toFixed(2)}`} />
-              {securityStrategy === 'insurance' ?
-                <PriceRow label="Trust Insurance" value={`₹${insuranceFee.toFixed(2)}`} /> :
-                <PriceRow label="Refundable Deposit" value={`₹${depositAmount.toFixed(2)}`} />
-              }
-              <PriceRow label="Network Bonus" value={`-₹${trustBonus.toFixed(2)}`} isBonus />
-              <div className="pt-2 sm:pt-3 border-t border-gray-100 flex justify-between items-center">
-                <span className="font-bold text-slate-800 text-base sm:text-lg">Total</span>
-                <span className="font-black text-slate-900 text-xl sm:text-2xl">₹{totalDue.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleCheckout}
-              disabled={isInitializing}
-              className="w-full mt-4 sm:mt-6 bg-[#FF7A59] text-white py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-3 shadow-lg shadow-orange-200 disabled:opacity-50"
-            >
-              {isInitializing ? <Loader2 className="animate-spin" /> : 'Request Rental'}
-            </button>
+            </motion.div>
           </div>
         </div>
       </div>
@@ -211,9 +302,9 @@ const ItemDetail: React.FC = () => {
 };
 
 const PriceRow = ({ label, value, isBonus = false }: { label: string; value: string; isBonus?: boolean }) => (
-  <div className={`flex justify-between items-center text-sm ${isBonus ? 'text-green-600' : 'text-slate-600'}`}>
-    <span className="font-semibold">{label}</span>
-    <span className="font-bold">{value}</span>
+  <div className={`flex justify-between items-center text-sm font-medium ${isBonus ? 'text-green-600' : 'text-slate-500'}`}>
+    <span>{label}</span>
+    <span className={isBonus ? 'font-semibold' : 'text-slate-800'}>{value}</span>
   </div>
 );
 

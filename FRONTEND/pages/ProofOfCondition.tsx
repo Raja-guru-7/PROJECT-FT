@@ -1,185 +1,117 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Video, Upload, CheckCircle2, Loader2, ChevronLeft } from 'lucide-react';
-
-interface VideoUploadBoxProps {
-  title: string;
-  onUpload: (file: File) => void;
-  isUploaded: boolean;
-  progress: number;
-  isUploading: boolean;
-}
-
-const VideoUploadBox: React.FC<VideoUploadBoxProps> = ({ title, onUpload, isUploaded, progress, isUploading }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) onUpload(file);
-  };
-
-  return (
-    <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-8 flex flex-col items-center justify-center gap-4 hover:border-[#093E28]/30 transition-colors group relative overflow-hidden">
-      {isUploaded ? (
-        <div className="flex flex-col items-center gap-2 animate-in zoom-in-95">
-          <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
-            <CheckCircle2 size={32} />
-          </div>
-          <span className="text-green-600 font-bold">Uploaded Successfully</span>
-        </div>
-      ) : isUploading ? (
-        <div className="w-full space-y-4 px-4">
-          <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
-            <span>Uploading...</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#093E28] transition-all duration-300 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center group-hover:bg-[#093E28]/5 group-hover:text-[#093E28] transition-colors">
-            <Video size={32} />
-          </div>
-          <div className="text-center">
-            <h3 className="font-bold text-slate-800">{title}</h3>
-            <p className="text-xs text-slate-500 mt-1">MP4, MOV up to 50MB</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-2 bg-[#093E28] text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-all active:scale-95"
-          >
-            <Upload size={16} /> Upload Video
-          </button>
-        </>
-      )}
-    </div>
-  );
-};
+import { Video, Upload, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ProofOfCondition: React.FC = () => {
   const navigate = useNavigate();
-  const [uploads, setUploads] = useState({
-    before: { progress: 0, done: false, uploading: false, url: '' },
-    after: { progress: 0, done: false, uploading: false, url: '' }
-  });
+  const [uploads, setUploads] = useState({ before: { progress: 0, done: false, uploading: false, url: '' }, after: { progress: 0, done: false, uploading: false, url: '' } });
   const [toast, setToast] = useState('');
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const uploadToCloudinary = async (file: File, type: 'before' | 'after') => {
     setUploads(prev => ({ ...prev, [type]: { ...prev[type], uploading: true, progress: 10 } }));
-
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      formData.append('video', file, file.name);
-      formData.append('type', type);
-
-      // Simulate progress while uploading
+      formData.append('video', file, file.name); formData.append('type', type);
       let p = 10;
-      const progressInterval = setInterval(() => {
-        p += 10;
-        if (p < 90) {
-          setUploads(prev => ({ ...prev, [type]: { ...prev[type], progress: p } }));
-        }
-      }, 300);
-
-      const res = await fetch('http://localhost:5000/api/transaction/upload-proof-file', {
-        method: 'POST',
-        headers: { 'x-auth-token': token || '' },
-        body: formData
-      });
-
-      clearInterval(progressInterval);
-
-      if (res.ok) {
-        const json = await res.json();
-        setUploads(prev => ({ ...prev, [type]: { progress: 100, done: true, uploading: false, url: json.url || '' } }));
-        showToast(`✅ ${type === 'before' ? 'Before' : 'After'} video uploaded!`);
-      } else {
-        throw new Error('Upload failed');
-      }
-    } catch {
-      setUploads(prev => ({ ...prev, [type]: { progress: 0, done: false, uploading: false, url: '' } }));
-      showToast('❌ Upload failed. Try again.');
-    }
+      const pi = setInterval(() => { p += 10; if (p < 90) setUploads(prev => ({ ...prev, [type]: { ...prev[type], progress: p } })); }, 300);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/transaction/upload-proof-file`, { method: 'POST', headers: { 'x-auth-token': token || '' }, body: formData });
+      clearInterval(pi);
+      if (res.ok) { const json = await res.json(); setUploads(prev => ({ ...prev, [type]: { progress: 100, done: true, uploading: false, url: json.url || '' } })); showToast(`[${type.toUpperCase()}] SCAN VALIDATED`); }
+      else throw new Error('Upload failed');
+    } catch { setUploads(prev => ({ ...prev, [type]: { progress: 0, done: false, uploading: false, url: '' } })); showToast('TRANSMISSION FAILED'); }
   };
 
   const bothUploaded = uploads.before.done && uploads.after.done;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#093E28] text-white px-6 py-3 rounded-xl shadow-2xl z-[100] font-bold">
-          {toast}
-        </div>
-      )}
-
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8">
-        <ChevronLeft size={20} /> Back
+    <div className="bg-[#F5F5F7] min-h-screen px-4 md:px-8 py-12 pb-24 relative">
+      <button onClick={() => navigate(-1)} className="absolute top-12 left-4 md:left-8 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
+        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
       </button>
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[3000] px-4 py-2 rounded-full font-semibold text-white text-xs tracking-wide bg-slate-800 shadow-lg">
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-black tracking-tighter text-slate-900 mb-4">Proof-of-Condition</h1>
-        <p className="text-slate-500 font-medium max-w-lg mx-auto">
-          Protect yourself by documenting the item's condition before pickup and after return.
-        </p>
+      <div className="max-w-[800px] mx-auto relative z-10">
+
+        <div className="text-center mb-10">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-800 mb-3">Condition Protocols</h1>
+          <p className="font-medium text-sm text-slate-500 max-w-md mx-auto">Execute visual scans pre and post engagement to ensure integrity.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <VideoUploadBox title="Pre-Engagement Scan" onUpload={(f) => uploadToCloudinary(f, 'before')} isUploaded={uploads.before.done} progress={uploads.before.progress} isUploading={uploads.before.uploading} />
+          <VideoUploadBox title="Post-Engagement Scan" onUpload={(f) => uploadToCloudinary(f, 'after')} isUploaded={uploads.after.done} progress={uploads.after.progress} isUploading={uploads.after.uploading} />
+        </div>
+
+        {bothUploaded && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-10 flex justify-center">
+            <button onClick={() => navigate('/dashboard')} className="px-8 py-3.5 rounded-full bg-black text-white font-semibold hover:bg-slate-800 transition-colors shadow-md">
+              Submit Logs & Exit
+            </button>
+          </motion.div>
+        )}
+
+        <div className="mt-12 p-6 rounded-2xl flex gap-4 items-start bg-blue-50 border border-blue-100">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-blue-100 text-blue-600">
+            <CheckCircle2 size={20} />
+          </div>
+          <div>
+            <h4 className="text-blue-800 font-bold mb-1 text-sm">Protocol Imperative</h4>
+            <p className="text-xs font-medium text-blue-600/80 leading-relaxed">Visual logs form immutable evidence within the network. Ensure optical sensors capture all asset facets to prevent allocation disputes.</p>
+          </div>
+        </div>
       </div>
+    </div>
+  );
+};
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <VideoUploadBox
-          title="Before Pickup Video"
-          onUpload={(file) => uploadToCloudinary(file, 'before')}
-          isUploaded={uploads.before.done}
-          progress={uploads.before.progress}
-          isUploading={uploads.before.uploading}
-        />
-        <VideoUploadBox
-          title="After Return Video"
-          onUpload={(file) => uploadToCloudinary(file, 'after')}
-          isUploaded={uploads.after.done}
-          progress={uploads.after.progress}
-          isUploading={uploads.after.uploading}
-        />
-      </div>
+const VideoUploadBox: React.FC<{ title: string; onUpload: (f: File) => void; isUploaded: boolean; progress: number; isUploading: boolean; }> = ({ title, onUpload, isUploaded, progress, isUploading }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) onUpload(f); };
 
-      {bothUploaded && (
-        <div className="mt-8 text-center animate-in fade-in">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="bg-[#093E28] text-white px-10 py-4 rounded-full font-bold text-lg hover:opacity-90"
-          >
-            ✅ Submit Proof & Continue
+  return (
+    <div onClick={() => !isUploaded && !isUploading && fileInputRef.current?.click()}
+      className={`flex flex-col items-center justify-center gap-4 p-8 rounded-3xl cursor-pointer transition-all border-2 bg-white ${isUploaded ? 'border-solid border-green-200 shadow-sm' : 'border-dashed border-slate-200 hover:bg-slate-50'
+        }`} style={{ minHeight: '220px' }}>
+      {isUploaded ? (
+        <div className="flex flex-col items-center gap-2 text-green-600">
+          <CheckCircle2 size={40} />
+          <span className="font-bold text-sm">Upload Complete</span>
+        </div>
+      ) : isUploading ? (
+        <div className="w-full space-y-3 px-4">
+          <div className="flex justify-between text-xs font-semibold text-slate-500">
+            <span className="animate-pulse">Uploading...</span><span>{progress}%</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-full bg-black transition-all" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center bg-slate-50 border border-slate-100 text-slate-400">
+            <Video size={24} />
+          </div>
+          <div className="text-center">
+            <h3 className="font-semibold text-slate-800 text-sm">{title}</h3>
+            <p className="text-xs mt-1 font-medium text-slate-400">MP4, MOV / 50MB MAX</p>
+          </div>
+          <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+          <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+            className="mt-2 px-5 py-2 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+            Select Video
           </button>
-        </div>
+        </>
       )}
-
-      <div className="mt-12 bg-blue-50 border border-blue-100 p-6 rounded-3xl flex gap-4 items-start">
-        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shrink-0 shadow-sm">
-          <CheckCircle2 size={20} />
-        </div>
-        <div>
-          <h4 className="font-bold text-blue-900 mb-1">Why is this important?</h4>
-          <p className="text-blue-800/70 text-sm leading-relaxed">
-            Video evidence is the primary way we resolve disputes. Ensure the video shows all sides of the item and its functionality.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

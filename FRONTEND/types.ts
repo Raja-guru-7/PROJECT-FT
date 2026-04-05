@@ -1,4 +1,3 @@
-
 export enum UserRole {
   RENTER = 'RENTER',
   OWNER = 'OWNER',
@@ -7,19 +6,40 @@ export enum UserRole {
 
 export interface User {
   id: string;
+  _id?: string;
   name: string;
   avatar: string;
   trustScore: number;
   isVerified: boolean;
-  kycStatus: String;
+  kycStatus: string;
+  livenessStatus?: boolean;
+  phoneVerified?: boolean;
   location: { lat: number; lng: number };
+  successfulTransactions?: number;
+  averageRating?: number;
+  settings?: {
+
+    biometricLogin: boolean;
+    stealthMode: boolean;
+    metadataEncryption: boolean;
+    handoverAlerts: boolean;
+    escrowSummaries: boolean;
+  };
+  paymentMethod?: {
+    cardType: string;
+    last4: string;
+    expiry: string;
+  };
+  savedAssets?: string[];
 }
 
 export interface Item {
   id: string;
   ownerId: string;
+  owner: any;
   ownerName: string;
   ownerTrustScore: number;
+  ownerAvatar?: string;
   title: string;
   description: string;
   category: string;
@@ -30,6 +50,7 @@ export interface Item {
   videoUrl?: string;
   location: { lat: number; lng: number; address: string };
   distance?: number;
+  // No changes were made to the Item interface as the provided code edit does not specify any changes.
 }
 
 export enum TransactionStatus {
@@ -44,13 +65,17 @@ export enum TransactionStatus {
 
 export interface Transaction {
   id: string;
+  _id?: string;
   itemId: string;
   itemTitle: string;
-  renterId: string;
-  ownerId: string;
+  renterId: string | { _id: string };
+  ownerId: string | { _id: string };
   startDate: string;
   endDate: string;
   totalAmount: number;
-  status: TransactionStatus;
+  status: TransactionStatus | string;
   otpCode?: string;
+  returnOtpCode?: string;
+  ownerVideoUrl?: string;
+  renterVideoUrl?: string;
 }

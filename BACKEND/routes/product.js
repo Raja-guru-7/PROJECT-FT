@@ -5,7 +5,7 @@ const auth = require("../middleware/auth");
 const { uploadImage } = require("../cloudinary");
 
 // @route POST /api/product/add
-router.post("/add", auth, uploadImage.single("video"), async (req, res) => {
+router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
   try {
     const { title, description, category, pricePerDay, insuranceDeposit, locationAddress, lat, lng } = req.body;
 
@@ -35,7 +35,7 @@ router.post("/add", auth, uploadImage.single("video"), async (req, res) => {
 // @route GET /api/product/nearby
 router.get("/nearby", async (req, res) => {
   try {
-    const { lat, lng, radius = 5 } = req.query;
+    const { lat, lng, radius = 30 } = req.query;
     const radiusInMeters = parseFloat(radius) * 1000;
 
     const products = await Product.find({
@@ -45,7 +45,10 @@ router.get("/nearby", async (req, res) => {
           $maxDistance: radiusInMeters
         }
       },
-      isAvailable: true
+      $or: [
+        { status: 'available' },
+        { isAvailable: true }
+      ]
     }).populate("owner", "name trustScore avatar");
 
     res.json(products);
@@ -58,8 +61,16 @@ router.get("/nearby", async (req, res) => {
 // @route GET /api/product/all
 router.get("/all", async (req, res) => {
   try {
-    const { category, query } = req.query;
-    let filter = { isAvailable: true };
+    const { category, query, status } = req.query;
+    let filter = {};
+    
+    // Support both 'status=available' and legacy 'isAvailable: true'
+    if (status === 'available') {
+      filter.$or = [{ status: 'available' }, { isAvailable: true }];
+    } else {
+      filter.isAvailable = true;
+    }
+
     if (category) filter.category = category;
     if (query) filter.title = { $regex: query, $options: "i" };
 

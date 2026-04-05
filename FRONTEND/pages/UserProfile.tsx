@@ -1,30 +1,45 @@
+// UserProfile.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, Loader2 } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, Loader2, Edit2 } from 'lucide-react';
 
-interface PublicUser {
-  _id: string;
-  name: string;
-  trustScore: number;
-  kycStatus: string;
-  isVerified: boolean;
-}
+const cardStyle = {
+  background: '#ffffff',
+  borderRadius: '2rem',
+  border: '1px solid #f1f5f9',
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+};
 
 const UserProfile: React.FC = () => {
   const navigate = useNavigate();
   const { userId } = useParams();
-  const [user, setUser] = useState<PublicUser | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // ✅ FIXED: localStorage key is "user", id field is "id" (not "_id")
+  const getLoggedInUserId = (): string | null => {
+    try {
+      const userObj = localStorage.getItem('user');
+      if (userObj) {
+        const parsed = JSON.parse(userObj);
+        return parsed.id || parsed._id || null;
+      }
+    } catch {
+      // silent fail
+    }
+    return null;
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/user/${userId}`
+        );
         const data = await res.json();
         if (res.ok) setUser(data);
-        else console.error(data.msg);
       } catch (err) {
-        console.error('Failed to fetch user');
+        // silent fail
       } finally {
         setLoading(false);
       }
@@ -32,114 +47,169 @@ const UserProfile: React.FC = () => {
     if (userId) fetchUser();
   }, [userId]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Loader2 className="animate-spin text-[#093E28]" size={40} />
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-[#F5F5F7]">
+        <Loader2 className="animate-spin text-slate-400" size={40} />
+      </div>
+    );
 
-  if (!user) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-slate-500 font-bold">User not found</p>
-    </div>
-  );
+  if (!user)
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-[#F5F5F7]">
+        <p className="text-slate-500 font-medium">User not found</p>
+      </div>
+    );
 
-  const badgeLabel = user.trustScore >= 80 ? 'Master Handler' : user.trustScore >= 50 ? 'Trusted User' : 'New Member';
+  // ✅ FIXED: profile._id from MongoDB vs logged-in user's "id" from localStorage
+  const loggedInUserId = getLoggedInUserId();
+  const profileUserId = user._id || user.id;
+  const isOwnProfile = !!(loggedInUserId && profileUserId && loggedInUserId === profileUserId);
+
+  const badgeLabel =
+    user.trustScore >= 80 ? 'Elite' : user.trustScore >= 50 ? 'Trusted' : 'New Member';
+
+  // FIXED: Image Logic Changed Here
+  const dynamicAvatar = user.avatar || user.profilePhoto || user.profileImageUrl || user.picture;
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=0f172a&color=fff&size=128&bold=true`;
+  const avatarUrl = dynamicAvatar || fallbackAvatar;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <div className="w-full min-h-screen bg-[#F5F5F7] pb-24 relative">
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors mb-8 group"
+        className="absolute top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium hover:opacity-70 transition-opacity text-slate-500 z-10"
       >
-        <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-        Back
+        <ChevronLeft size={18} /> Back
       </button>
+      <div className="max-w-[1000px] mx-auto px-4 md:px-8 py-8 sm:py-12 lg:py-16">
 
-      {/* Profile Header */}
-      <div className="bg-white rounded-3xl soft-shadow p-8 sm:p-12 mb-10">
-        <div className="flex flex-col md:flex-row items-center gap-8">
-          <div className="relative">
-            <img
-              src={`https://ui-avatars.com/api/?name=${user.name}&background=093E28&color=fff&size=128`}
-              alt="Profile"
-              className="w-32 h-32 rounded-full ring-4 ring-white shadow-lg object-cover"
-            />
-            <div className="absolute -bottom-1 -right-1 bg-green-500 text-white p-2 rounded-full border-4 border-white">
-              <ShieldCheck size={20} />
-            </div>
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 mb-2">{user.name}</h1>
-            <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 text-slate-600 font-semibold">
-              <div className="flex items-center gap-2">
-                <Star size={16} className="text-amber-500" fill="currentColor" />
-                <span>{user.trustScore} Trust Score</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users size={16} className="text-blue-500" />
-                <span>0 Handovers</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Award size={16} className="text-orange-500" />
-                <span>{badgeLabel} Badge</span>
+        <div style={cardStyle} className="p-8 sm:p-10 mb-8">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+            <div className="relative">
+              <img
+                src={avatarUrl}
+                alt={`${user.name}'s Profile`}
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-white shadow-md bg-slate-100"
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (target.src !== fallbackAvatar) target.src = fallbackAvatar;
+                }}
+              />
+              <div className={`absolute bottom-0 right-0 p-1.5 rounded-full border-4 border-white ${user.isVerified ? 'bg-green-500' : 'bg-slate-300'}`}>
+                <ShieldCheck size={16} color="#ffffff" />
               </div>
             </div>
-            <div className="mt-3">
-              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                user.kycStatus === 'verified' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-                {user.kycStatus === 'verified' ? '✅ KYC Verified' : '⏳ KYC Pending'}
-              </span>
+
+            <div className="flex-1 text-center md:text-left w-full pt-2">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+                <h1 className="text-3xl sm:text-4xl font-bold text-slate-800">{user.name}</h1>
+                {isOwnProfile && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/settings')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors self-center md:self-start"
+                  >
+                    <Edit2 size={14} /> Edit Profile
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 sm:gap-6 mb-6">
+                <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+                  <Star size={16} className="text-amber-500" />
+                  <span className="text-amber-800 font-semibold text-sm">{user.trustScore} Trust Score</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-500 font-medium text-sm">
+                  <Users size={16} className="text-slate-400" />
+                  <span>{user.successfulTransactions || 0} Deals</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-500 font-medium text-sm">
+                  <Award size={16} className="text-slate-400" />
+                  <span>{badgeLabel}</span>
+                </div>
+              </div>
+
+              <div>
+                <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold ${user.kycStatus === 'verified'
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                  {user.kycStatus === 'verified'
+                    ? <><CheckCircle2 size={14} className="text-emerald-500" /> KYC Verified</>
+                    : '⏳ KYC Pending'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Reputation + History */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <section>
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">Reputation Feed</h2>
-          <div className="bg-white p-6 rounded-2xl soft-shadow text-center text-slate-400 font-semibold">
-            No reviews yet — complete your first transaction!
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">Operational History</h2>
-          <div className="bg-white rounded-3xl soft-shadow p-8">
-            <div className="text-center text-slate-400 font-semibold py-4">
-              No transactions yet
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          <section>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 px-2">Reputation Feed</h2>
+            <div style={cardStyle} className="p-8 text-center flex flex-col items-center justify-center min-h-[200px] bg-white">
+              <Star className="mb-3 text-slate-200" size={40} />
+              <p className="text-slate-500 text-sm font-medium">
+                {isOwnProfile
+                  ? 'No consensus records found. Complete a transaction to build reputation.'
+                  : 'No reviews available for this user yet.'}
+              </p>
             </div>
-            <button className="w-full mt-4 text-sm font-bold text-slate-500 hover:text-slate-800 py-3 rounded-lg hover:bg-gray-100 transition-all">
-              View Full History
-            </button>
-          </div>
-        </section>
-      </div>
+          </section>
 
-      {/* Verified Credentials */}
-      <div className="mt-16">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">Verified Credentials</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <CredentialCard label="Government ID" date={user.kycStatus === 'verified' ? 'Verified' : 'Pending'} />
-          <CredentialCard label="Liveness Check" date={user.isVerified ? 'Passed' : 'Pending'} />
-          <CredentialCard label="Mobile Number" date="Pending" />
+          <section>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 px-2">
+              {isOwnProfile ? 'Activity' : 'Operational History'}
+            </h2>
+            <div style={cardStyle} className="p-8 flex flex-col justify-center min-h-[200px] bg-white text-center gap-4">
+              <p className="text-slate-400 font-medium text-sm">
+                {isOwnProfile ? 'No recent activity.' : 'No transactions yet.'}
+              </p>
+              {isOwnProfile && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/explore')}
+                  className="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold text-sm hover:bg-slate-700 transition-colors"
+                >
+                  Browse Items →
+                </button>
+              )}
+            </div>
+          </section>
         </div>
+
+        {/* Trust & Verifications — own profile only */}
+        {isOwnProfile && (
+          <section className="mt-8">
+            <h2 className="text-lg font-bold text-slate-800 mb-4 px-2">Trust & Verifications</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { label: 'Government ID', verified: user.kycStatus === 'verified' },
+                { label: 'Liveness Check', verified: user.livenessStatus === true },
+                { label: 'Mobile Number', verified: user.phoneVerified === true },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={cardStyle}
+                  className={`p-5 flex flex-col gap-3 border-2 ${item.verified ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100'}`}
+                >
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${item.verified ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                    <CheckCircle2 size={18} className={item.verified ? 'text-emerald-500' : 'text-slate-400'} />
+                  </div>
+                  <p className="text-slate-700 font-semibold text-sm">{item.label}</p>
+                  <span className={`text-xs font-bold ${item.verified ? 'text-emerald-500' : 'text-amber-500'}`}>
+                    ● {item.verified ? 'VERIFIED' : 'PENDING'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
       </div>
     </div>
   );
 };
-
-const CredentialCard = ({ label, date }: { label: string; date: string }) => (
-  <div className="bg-white p-6 rounded-2xl soft-shadow">
-    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600 mb-4">
-      <CheckCircle2 size={20} />
-    </div>
-    <h3 className="font-bold text-slate-800">{label}</h3>
-    <p className="text-sm text-slate-500">{date}</p>
-  </div>
-);
 
 export default UserProfile;
