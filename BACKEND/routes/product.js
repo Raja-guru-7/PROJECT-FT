@@ -4,7 +4,15 @@ const Product = require("../models/product");
 const auth = require("../middleware/auth");
 const { uploadImage } = require("../cloudinary");
 
-router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
+router.post("/add", auth, (req, res, next) => {
+  uploadImage.single("image")(req, res, (err) => {
+    if (err) {
+      console.error("MULTER/CLOUDINARY ERROR:", err.message);
+      return res.status(500).json({ msg: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const { title, description, category, pricePerDay, insuranceDeposit, locationAddress, lat, lng } = req.body;
 
@@ -26,7 +34,7 @@ router.post("/add", auth, uploadImage.single("image"), async (req, res) => {
     const product = await newProduct.save();
     res.json({ msg: "Product listed successfully!", product });
   } catch (err) {
-    console.error("PRODUCT ADD ERROR:", err.stack);
+    console.error("PRODUCT ADD ERROR:", err.message);
     res.status(500).json({ msg: err.message });
   }
 });
@@ -48,7 +56,7 @@ router.get("/nearby", async (req, res) => {
 
     res.json(products);
   } catch (err) {
-    console.error("NEARBY ERROR:", err.stack);
+    console.error("NEARBY ERROR:", err.message);
     res.status(500).json({ msg: err.message });
   }
 });
@@ -73,7 +81,7 @@ router.get("/all", async (req, res) => {
 
     res.json(products);
   } catch (err) {
-    console.error("ALL ERROR:", err.stack);
+    console.error("ALL ERROR:", err.message);
     res.status(500).json({ msg: err.message });
   }
 });
@@ -85,7 +93,7 @@ router.get("/:id", async (req, res) => {
     if (!product) return res.status(404).json({ msg: "Product not found" });
     res.json(product);
   } catch (err) {
-    console.error("PRODUCT ID ERROR:", err.stack);
+    console.error("PRODUCT ID ERROR:", err.message);
     res.status(500).json({ msg: err.message });
   }
 });
