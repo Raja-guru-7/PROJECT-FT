@@ -61,11 +61,9 @@ const AppContent: React.FC = () => {
   const handleLogout = () => setIsAuthenticated(false);
   const toggleRole = () => setUserRole(prev => prev === 'RENTER' ? 'OWNER' : 'RENTER');
 
-  // 💥 Determine if the user is currently on the Landing page
   const isLandingPage = location.pathname === '/';
 
   return (
-    // 💥 DYNAMIC BACKGROUND: Apply 'bg-black' if on Landing page, else use 'bg-[#F5F5F7]'
     <div className={`min-h-screen flex flex-col font-sans overflow-x-hidden transition-colors duration-300 ${isLandingPage ? 'bg-black text-white' : 'bg-[#F5F5F7]'}`}>
 
       {isLoading ? (
@@ -81,8 +79,11 @@ const AppContent: React.FC = () => {
             <Navbar userRole={userRole} onToggleRole={toggleRole} onLogout={handleLogout} />
           )}
 
-          {/* 💥 DYNAMIC PADDING: Remove bottom padding on Landing page for full-screen effect */}
-          <main className={`flex-1 ${isLandingPage ? '' : 'pb-28'}`}>
+          {/* 
+            MOBILE FIX: pb-20 on mobile (bottom nav height) + pb-28 on md+ screens
+            Safe area inset handles iPhone home bar notch
+          */}
+          <main className={`flex-1 w-full max-w-full overflow-x-hidden ${isLandingPage ? '' : 'pb-20 md:pb-28 safe-bottom'}`}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={isAuthenticated ? <Navigate to="/explore" replace /> : <Landing onLogin={() => navigate('/login')} />} />

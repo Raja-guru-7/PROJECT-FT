@@ -3,13 +3,20 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+  <!-- MOBILE FIX: viewport-fit=cover enables safe-area-inset for iPhone notch/home bar -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
 
   <!-- ✅ Title & SEO -->
   <title>AroundU — Rent Anything, Anywhere</title>
   <meta name="description"
     content="AroundU is a trusted peer-to-peer rental platform. Rent anything you need from people nearby, secured by a revolutionary trust protocol." />
   <meta name="theme-color" content="#000000" />
+
+  <!-- ✅ PWA Mobile Web App -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
 
   <!-- ✅ Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -57,6 +64,51 @@
       --theme-accent: #EC4899;
       --theme-text: #1a1a2e;
       --theme-bg: #f5f3ff;
+
+      /* MOBILE FIX: Safe area inset variables for iPhone home bar */
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    /* MOBILE FIX: Safe area utility classes for Tailwind */
+    .safe-bottom {
+      padding-bottom: max(5rem, calc(5rem + env(safe-area-inset-bottom)));
+    }
+
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .pt-safe {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* MOBILE FIX: Prevent horizontal scroll globally */
+    .overflow-x-hidden {
+      overflow-x: hidden !important;
+    }
+
+    /* MOBILE FIX: Minimum touch target size for all interactive elements */
+    button,
+    a,
+    [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* MOBILE FIX: Prevent text overflow on small screens */
+    p,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    span {
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
 
     .leaflet-container {
@@ -118,6 +170,11 @@
       margin-top: -6px;
       border: 2px solid white;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* MOBILE FIX: Better tap highlight */
+    * {
+      -webkit-tap-highlight-color: rgba(124, 58, 237, 0.1);
     }
   </style>
   <script type="importmap">

@@ -9,7 +9,6 @@ const GooeyNav = ({
   particleDistances = [85, 25],
   particleR = 85,
   timeVariance = 200,
-  // Premium vibrant color palette (Cyan, Magenta, Yellow, Neon Green, Purple)
   colors = ['#00E5FF', '#FF0055', '#FFD700', '#39FF14', '#7000FF'],
   initialActiveIndex = 0
 }) => {
@@ -18,8 +17,6 @@ const GooeyNav = ({
   const filterRef = useRef(null);
   const textRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
-
-  // New state to control when the glow is active
   const [isGlowing, setIsGlowing] = useState(false);
 
   const navigate = useNavigate();
@@ -53,26 +50,25 @@ const GooeyNav = ({
     for (let i = 0; i < particleCount; i++) {
       const t = animationTime * 2 + noise(timeVariance * 2);
       const p = createParticle(i, t, d, r);
-      element.classList.remove('active');
-      setTimeout(() => {
-        const particle = document.createElement('span');
-        const point = document.createElement('span');
-        particle.classList.add('particle');
-        particle.style.setProperty('--start-x', `${p.start[0]}px`);
-        particle.style.setProperty('--start-y', `${p.start[1]}px`);
-        particle.style.setProperty('--end-x', `${p.end[0]}px`);
-        particle.style.setProperty('--end-y', `${p.end[1]}px`);
-        particle.style.setProperty('--time', `${p.time}ms`);
-        particle.style.setProperty('--scale', `${p.scale}`);
-        particle.style.setProperty('--particle-color', p.color);
-        particle.style.setProperty('--rotate', `${p.rotate}deg`);
-        point.classList.add('point');
-        particle.appendChild(point);
-        element.appendChild(particle);
-        requestAnimationFrame(() => { element.classList.add('active'); });
-        setTimeout(() => { try { element.removeChild(particle); } catch { } }, t);
-      }, 30);
+
+      const particle = document.createElement('span');
+      const point = document.createElement('span');
+      particle.classList.add('particle');
+      particle.style.setProperty('--start-x', `${p.start[0]}px`);
+      particle.style.setProperty('--start-y', `${p.start[1]}px`);
+      particle.style.setProperty('--end-x', `${p.end[0]}px`);
+      particle.style.setProperty('--end-y', `${p.end[1]}px`);
+      particle.style.setProperty('--time', `${p.time}ms`);
+      particle.style.setProperty('--scale', `${p.scale}`);
+      particle.style.setProperty('--particle-color', p.color);
+      particle.style.setProperty('--rotate', `${p.rotate}deg`);
+      point.classList.add('point');
+      particle.appendChild(point);
+      element.appendChild(particle);
+
+      setTimeout(() => { try { element.removeChild(particle); } catch { } }, t);
     }
+    element.classList.add('active');
   };
 
   const updateEffectPosition = (element) => {
@@ -87,7 +83,7 @@ const GooeyNav = ({
     };
     Object.assign(filterRef.current.style, styles);
     Object.assign(textRef.current.style, styles);
-    textRef.current.innerText = element.innerText;
+    textRef.current.innerText = element.querySelector('a').innerText;
   };
 
   const handleClick = (e, index) => {
@@ -96,16 +92,13 @@ const GooeyNav = ({
 
     setActiveIndex(index);
     updateEffectPosition(liEl);
-
-    // TURN ON GLOW
     setIsGlowing(true);
 
     if (filterRef.current) {
       filterRef.current.classList.remove('active');
       void filterRef.current.offsetWidth;
-      filterRef.current.querySelectorAll('.particle').forEach(p => {
-        try { filterRef.current.removeChild(p); } catch { }
-      });
+      filterRef.current.querySelectorAll('.particle').forEach(p => p.remove());
+      makeParticles(filterRef.current);
     }
 
     if (textRef.current) {
@@ -114,42 +107,26 @@ const GooeyNav = ({
       textRef.current.classList.add('active');
     }
 
-    if (filterRef.current) { makeParticles(filterRef.current); }
     if (items[index]?.href) { navigate(items[index].href); }
-
-    // TURN OFF GLOW AFTER ANIMATION COMPLETES (600ms)
-    setTimeout(() => {
-      setIsGlowing(false);
-    }, 600);
-  };
-
-  const handleKeyDown = (e, index) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      const liEl = e.currentTarget.parentElement;
-      if (liEl) handleClick({ currentTarget: liEl }, index);
-    }
+    setTimeout(() => setIsGlowing(false), 600);
   };
 
   useEffect(() => {
-    if (!navRef.current || !containerRef.current) return;
-    const activeLi = navRef.current.querySelectorAll('li')[activeIndex];
-    if (activeLi) {
-      updateEffectPosition(activeLi);
-      if (textRef.current) textRef.current.classList.add('active');
+    const handleInitialPos = () => {
+      if (!navRef.current) return;
+      const activeLi = navRef.current.querySelectorAll('li')[activeIndex];
+      if (activeLi) updateEffectPosition(activeLi);
+    };
 
-      if (filterRef.current) {
-        filterRef.current.classList.remove('active');
-        void filterRef.current.offsetWidth;
-        filterRef.current.classList.add('active');
-      }
-    }
-    const resizeObserver = new ResizeObserver(() => {
-      const currentActiveLi = navRef.current?.querySelectorAll('li')[activeIndex];
-      if (currentActiveLi) updateEffectPosition(currentActiveLi);
-    });
-    resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
+    handleInitialPos();
+    const ro = new ResizeObserver(handleInitialPos);
+    if (containerRef.current) ro.observe(containerRef.current);
+    window.addEventListener('resize', handleInitialPos);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', handleInitialPos);
+    };
   }, [activeIndex]);
 
   return (
@@ -157,19 +134,12 @@ const GooeyNav = ({
       <nav>
         <ul ref={navRef}>
           {items.map((item, index) => (
-            <li key={index} className={activeIndex === index ? 'active' : ''}>
-              <a
-                href={item.href}
-                onClick={(e) => { e.preventDefault(); handleClick(e, index); }}
-                onKeyDown={(e) => handleKeyDown(e, index)}
-              >
-                {item.label}
-              </a>
+            <li key={index} className={activeIndex === index ? 'active' : ''} onClick={(e) => handleClick(e, index)}>
+              <a href={item.href} onClick={(e) => e.preventDefault()}>{item.label}</a>
             </li>
           ))}
         </ul>
       </nav>
-      {/* dynamically adding 'glowing' class based on state */}
       <span className={`effect filter ${isGlowing ? 'glowing' : ''}`} ref={filterRef} />
       <span className="effect text" ref={textRef} />
     </div>
