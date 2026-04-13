@@ -1,14 +1,16 @@
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './GooeyNav.css';
 
 const GooeyNav = ({
   items,
-  animationTime = 600,
-  particleCount = 15,
-  particleDistances = [90, 10],
-  particleR = 100,
-  timeVariance = 300,
-  colors = [1, 2, 3, 1, 2, 3, 1, 4],
+  animationTime = 500,
+  particleCount = 14,
+  particleDistances = [85, 25],
+  particleR = 85,
+  timeVariance = 200,
+  // Premium vibrant color palette (Cyan, Magenta, Yellow, Neon Green, Purple)
+  colors = ['#00E5FF', '#FF0055', '#FFD700', '#39FF14', '#7000FF'],
   initialActiveIndex = 0
 }) => {
   const containerRef = useRef(null);
@@ -16,6 +18,13 @@ const GooeyNav = ({
   const filterRef = useRef(null);
   const textRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
+
+  // New state to control when the glow is active
+  const [isGlowing, setIsGlowing] = useState(false);
+
+  const navigate = useNavigate();
+
+  useEffect(() => { setActiveIndex(initialActiveIndex); }, [initialActiveIndex]);
 
   const noise = (n = 1) => n / 2 - Math.random() * n;
 
@@ -36,17 +45,15 @@ const GooeyNav = ({
     };
   };
 
-  const makeParticles = element => {
+  const makeParticles = (element) => {
     const d = particleDistances;
     const r = particleR;
     const bubbleTime = animationTime * 2 + timeVariance;
     element.style.setProperty('--time', `${bubbleTime}ms`);
-
     for (let i = 0; i < particleCount; i++) {
       const t = animationTime * 2 + noise(timeVariance * 2);
       const p = createParticle(i, t, d, r);
       element.classList.remove('active');
-
       setTimeout(() => {
         const particle = document.createElement('span');
         const point = document.createElement('span');
@@ -57,31 +64,21 @@ const GooeyNav = ({
         particle.style.setProperty('--end-y', `${p.end[1]}px`);
         particle.style.setProperty('--time', `${p.time}ms`);
         particle.style.setProperty('--scale', `${p.scale}`);
-        particle.style.setProperty('--color', `var(--color-${p.color}, white)`);
+        particle.style.setProperty('--particle-color', p.color);
         particle.style.setProperty('--rotate', `${p.rotate}deg`);
-
         point.classList.add('point');
         particle.appendChild(point);
         element.appendChild(particle);
-        requestAnimationFrame(() => {
-          element.classList.add('active');
-        });
-        setTimeout(() => {
-          try {
-            element.removeChild(particle);
-          } catch {
-            // Do nothing
-          }
-        }, t);
+        requestAnimationFrame(() => { element.classList.add('active'); });
+        setTimeout(() => { try { element.removeChild(particle); } catch { } }, t);
       }, 30);
     }
   };
 
-  const updateEffectPosition = element => {
+  const updateEffectPosition = (element) => {
     if (!containerRef.current || !filterRef.current || !textRef.current) return;
     const containerRect = containerRef.current.getBoundingClientRect();
     const pos = element.getBoundingClientRect();
-
     const styles = {
       left: `${pos.x - containerRect.x}px`,
       top: `${pos.y - containerRect.y}px`,
@@ -100,30 +97,37 @@ const GooeyNav = ({
     setActiveIndex(index);
     updateEffectPosition(liEl);
 
+    // TURN ON GLOW
+    setIsGlowing(true);
+
     if (filterRef.current) {
-      const particles = filterRef.current.querySelectorAll('.particle');
-      particles.forEach(p => filterRef.current.removeChild(p));
+      filterRef.current.classList.remove('active');
+      void filterRef.current.offsetWidth;
+      filterRef.current.querySelectorAll('.particle').forEach(p => {
+        try { filterRef.current.removeChild(p); } catch { }
+      });
     }
 
     if (textRef.current) {
       textRef.current.classList.remove('active');
-
       void textRef.current.offsetWidth;
       textRef.current.classList.add('active');
     }
 
-    if (filterRef.current) {
-      makeParticles(filterRef.current);
-    }
+    if (filterRef.current) { makeParticles(filterRef.current); }
+    if (items[index]?.href) { navigate(items[index].href); }
+
+    // TURN OFF GLOW AFTER ANIMATION COMPLETES (600ms)
+    setTimeout(() => {
+      setIsGlowing(false);
+    }, 600);
   };
 
   const handleKeyDown = (e, index) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       const liEl = e.currentTarget.parentElement;
-      if (liEl) {
-        handleClick({ currentTarget: liEl }, index);
-      }
+      if (liEl) handleClick({ currentTarget: liEl }, index);
     }
   };
 
@@ -132,16 +136,18 @@ const GooeyNav = ({
     const activeLi = navRef.current.querySelectorAll('li')[activeIndex];
     if (activeLi) {
       updateEffectPosition(activeLi);
-      textRef.current?.classList.add('active');
-    }
+      if (textRef.current) textRef.current.classList.add('active');
 
+      if (filterRef.current) {
+        filterRef.current.classList.remove('active');
+        void filterRef.current.offsetWidth;
+        filterRef.current.classList.add('active');
+      }
+    }
     const resizeObserver = new ResizeObserver(() => {
       const currentActiveLi = navRef.current?.querySelectorAll('li')[activeIndex];
-      if (currentActiveLi) {
-        updateEffectPosition(currentActiveLi);
-      }
+      if (currentActiveLi) updateEffectPosition(currentActiveLi);
     });
-
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, [activeIndex]);
@@ -152,14 +158,19 @@ const GooeyNav = ({
         <ul ref={navRef}>
           {items.map((item, index) => (
             <li key={index} className={activeIndex === index ? 'active' : ''}>
-              <a href={item.href} onClick={e => handleClick(e, index)} onKeyDown={e => handleKeyDown(e, index)}>
+              <a
+                href={item.href}
+                onClick={(e) => { e.preventDefault(); handleClick(e, index); }}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+              >
                 {item.label}
               </a>
             </li>
           ))}
         </ul>
       </nav>
-      <span className="effect filter" ref={filterRef} />
+      {/* dynamically adding 'glowing' class based on state */}
+      <span className={`effect filter ${isGlowing ? 'glowing' : ''}`} ref={filterRef} />
       <span className="effect text" ref={textRef} />
     </div>
   );
