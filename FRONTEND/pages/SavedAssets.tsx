@@ -20,9 +20,9 @@ export const SavedAssets: React.FC = () => {
         } catch (backendError) {
           const userStr = localStorage.getItem('user');
           const savedIds = userStr ? JSON.parse(userStr).savedAssets || [] : [];
-          
+
           if (savedIds.length > 0) {
-            const allItems = await api.getItems({}); 
+            const allItems = await api.getItems({});
             items = allItems.filter((item: Item) => savedIds.includes(item.id));
           }
         }
@@ -61,7 +61,7 @@ export const SavedAssets: React.FC = () => {
     }
   };
 
-  const filteredItems = savedItems.filter(item => 
+  const filteredItems = savedItems.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -69,7 +69,7 @@ export const SavedAssets: React.FC = () => {
     <div className="min-h-screen w-full bg-[#F5F5F7] pb-24 relative">
       <button type="button" onClick={() => navigate(-1)}
         className="absolute top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
-          <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
+        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
       </button>
       <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-8 sm:py-12">
 
@@ -95,7 +95,7 @@ export const SavedAssets: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            
+
             {filteredItems.length === 0 && (
               <div className="col-span-full py-16 text-center bg-white rounded-[2rem] border border-slate-100 shadow-sm">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-slate-50 border border-slate-100">
@@ -114,11 +114,11 @@ export const SavedAssets: React.FC = () => {
                 <div className="bg-white rounded-[2rem] p-3 border border-slate-100 flex flex-col h-full relative hover:shadow-lg transition-shadow duration-300">
                   <div className="relative aspect-[4/3] rounded-[1.5rem] overflow-hidden mb-4 bg-slate-50">
                     <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-                    
+
                     <button onClick={(e) => handleRemoveSaved(e, item.id)} className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md shadow-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95">
                       <Heart size={18} className="fill-red-500 text-red-500" />
                     </button>
-                    
+
                     <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1">
                       <span className="text-sm font-semibold text-slate-800">₹{item.pricePerDay}</span>
                       <span className="text-[10px] font-medium text-slate-500 mt-0.5">/day</span>

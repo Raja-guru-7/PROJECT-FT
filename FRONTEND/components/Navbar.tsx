@@ -119,7 +119,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
             </button>
 
             {isProfileOpen && (
-              <div className="absolute top-12 sm:top-14 right-0 w-[260px] p-2 z-[2600] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute top-full mt-2 sm:mt-3 right-0 w-[260px] p-2 z-[2600] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right animate-in fade-in zoom-in-95 duration-150">
                 <div className="p-3 mb-1 flex items-center gap-3 border-b border-slate-50">
                   <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full object-cover bg-slate-100" />
                   <div className="overflow-hidden">

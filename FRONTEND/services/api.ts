@@ -1,8 +1,7 @@
 import { MOCK_ITEMS, MOCK_CURRENT_USER, MOCK_TRANSACTIONS } from '../mockData';
 import { Item, Transaction, User } from '../types';
 
-// 🔥 FIXED: Using Environment Variable instead of hardcoded URL
-const BASE_URL = 'https://aroundu-backend-hd26.onrender.com/api';
+const BASE_URL = (import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com') + '/api';
 
 class ApiService {
   private getToken(): string | null {
@@ -18,7 +17,7 @@ class ApiService {
   }
 
   // AUTH
-  async login(data: { email: string; password: string }): Promise<{ token: string }> {
+  async login(data: { email: string; password: string }): Promise<any> {
     const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -26,15 +25,39 @@ class ApiService {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.msg || 'Login failed');
-    localStorage.setItem('token', json.token);
+    return json;
+  }
 
-    try {
-      const user = await this.getCurrentUser();
-      localStorage.setItem('user', JSON.stringify(user));
-    } catch (e) {
-      console.warn('Failed to store user data during login:', e);
+  // ── NEW: Send OTP to email for login ────────────────────────────────────
+  async sendLoginOtp(email: string, password: string): Promise<{ msg: string }> {
+    const res = await fetch(`${BASE_URL}/auth/send-login-otp`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ email, password }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.msg || 'Failed to send OTP');
+    return json;
+  }
+
+  // ── UPDATED: Verify login OTP — accepts (email, otp) separately ─────────
+  async verifyLoginOtp(email: string, otp: string): Promise<any> {
+    const res = await fetch(`${BASE_URL}/auth/verify-login-otp`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ email, otp }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.msg || 'OTP verification failed');
+    if (json.token) {
+      localStorage.setItem('token', json.token);
+      try {
+        const user = await this.getCurrentUser();
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (e) {
+        console.warn('Failed to store user data:', e);
+      }
     }
-
     return json;
   }
 
@@ -44,7 +67,6 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify({ email, name }),
     });
-
     if (!res.ok) {
       const text = await res.text();
       let msg = 'Failed to send OTP';
@@ -56,7 +78,6 @@ class ApiService {
       }
       throw new Error(msg);
     }
-
     return await res.json();
   }
 
@@ -69,14 +90,12 @@ class ApiService {
     const json = await res.json();
     if (!res.ok) throw new Error(json.msg || 'Registration failed');
     localStorage.setItem('token', json.token);
-
     try {
       const user = await this.getCurrentUser();
       localStorage.setItem('user', JSON.stringify(user));
     } catch (e) {
       console.warn('Failed to store user data during registration:', e);
     }
-
     return json;
   }
 
@@ -97,7 +116,6 @@ class ApiService {
     const json = await res.json();
     if (!res.ok) throw new Error(json.msg || 'Google sign-in failed');
     localStorage.setItem('token', json.token);
-
     if (json.token) {
       try {
         const user = await this.getCurrentUser();
@@ -106,7 +124,6 @@ class ApiService {
         console.warn('Failed to store user data during Google sign-in:', e);
       }
     }
-
     return json;
   }
 

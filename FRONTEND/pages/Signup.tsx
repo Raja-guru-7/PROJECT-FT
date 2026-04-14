@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { User, Mail, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { FloatingShapes } from '../components/3d/FloatingShapes';
 import { signInWithGoogle } from '../services/googleAuth';
@@ -8,11 +8,10 @@ import { signInWithGoogle } from '../services/googleAuth';
 const Signup: React.FC = () => {
   const navigate = useNavigate();
 
-  // ── Original Backend Logic & State ──────────────────────────────────────
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
+    password: Math.random().toString(36).slice(-10) + 'A1!',
     aadhaar: '',
     otp: ''
   });
@@ -85,8 +84,7 @@ const Signup: React.FC = () => {
     setIsLoading(true);
     try {
       const { api } = await import('../services/api');
-      
-      // 1. Run the registration
+
       await api.register({
         name: formData.name,
         email: formData.email,
@@ -94,21 +92,16 @@ const Signup: React.FC = () => {
         otp: formData.otp
       });
 
-      // 2. FIXED: api.register automatically saved the 'user' object to localStorage. 
-      // We parse it and extract the ID so the KYC page knows who we are!
       const savedUserStr = localStorage.getItem('user');
       if (savedUserStr) {
         const savedUser = JSON.parse(savedUserStr);
         if (savedUser.id) {
-          // Save it as pendingUserId so the KYC page finds it perfectly
           localStorage.setItem('pendingUserId', savedUser.id);
-          localStorage.setItem('userId', savedUser.id); 
+          localStorage.setItem('userId', savedUser.id);
         }
       }
 
       showToast('Profile Registered on Network');
-      
-      // Route to KYC
       setTimeout(() => navigate('/kyc'), 1000);
     } catch (err: any) {
       setError(err.message || 'Registration failure. Try again.');
@@ -117,9 +110,7 @@ const Signup: React.FC = () => {
       setIsLoading(false);
     }
   };
-  // ────────────────────────────────────────────────────────────────────────
 
-  // --- 3D Tilt Physics (Flicker-Free) ---
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const mouseXSpring = useSpring(x, { stiffness: 400, damping: 40 });
@@ -138,19 +129,15 @@ const Signup: React.FC = () => {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 bg-[#F5F5F7] force-light-theme overflow-hidden">
-
-      {/* 💥 NUCLEAR CSS FOR PURE THEME & NO PINK BUTTONS 💥 */}
       <style>{`
         .force-light-theme input { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
         .force-light-theme input::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; }
-        
         button.anti-pink-btn { box-shadow: none !important; background-image: none !important; }
         button.anti-pink-btn:disabled { background-color: #f1f5f9 !important; color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; border: 1px solid #e2e8f0 !important; cursor: not-allowed !important; }
         button.anti-pink-btn:not(:disabled) { background-color: #000000 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; border: none !important; cursor: pointer !important; }
         button.anti-pink-btn:not(:disabled):hover { background-color: #1e293b !important; }
       `}</style>
 
-      {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
@@ -175,7 +162,6 @@ const Signup: React.FC = () => {
           initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}
           className="w-full"
         >
-          {/* ── Main Card ── */}
           <div
             className="bg-white p-6 sm:p-10 rounded-[2.5rem] border border-slate-200"
             style={{
@@ -187,7 +173,6 @@ const Signup: React.FC = () => {
           >
             <div style={{ transform: "translateZ(20px)", backfaceVisibility: "hidden" }}>
 
-              {/* Header */}
               <div className="text-center mb-8">
                 <Link to="/" className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl mb-4 bg-slate-50 border border-slate-200 shadow-sm hover:scale-105 transition-transform">
                   <ShieldCheck className="text-slate-800" size={32} />
@@ -196,7 +181,6 @@ const Signup: React.FC = () => {
                 <p className="text-slate-500 font-medium text-sm sm:text-base">Register your identity on the network</p>
               </div>
 
-              {/* Error */}
               <AnimatePresence>
                 {error && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
@@ -209,7 +193,6 @@ const Signup: React.FC = () => {
 
               <form onSubmit={handleSignup} className="space-y-5">
 
-                {/* Form Fields using original text labels */}
                 <div>
                   <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Operative Designation</label>
                   <div className="relative">
@@ -226,15 +209,6 @@ const Signup: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Security Cipher</label>
-                  <div className="relative">
-                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="password" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={inputClass} />
-                  </div>
-                </div>
-
-                {/* OTP Block */}
                 {isOtpSent && !isVerified && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                     className="space-y-3 p-5 rounded-2xl bg-amber-50 border border-amber-200"
@@ -251,7 +225,6 @@ const Signup: React.FC = () => {
                   </motion.div>
                 )}
 
-                {/* Terms */}
                 <div className="flex items-start gap-3 px-1 mt-2">
                   <input type="checkbox" id="terms" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="w-4 h-4 mt-0.5 rounded accent-slate-900" />
                   <label htmlFor="terms" className="text-xs text-slate-600 cursor-pointer leading-tight font-medium">
@@ -259,7 +232,6 @@ const Signup: React.FC = () => {
                   </label>
                 </div>
 
-                {/* Nuclear Override Submit Button */}
                 <button type="submit" disabled={isLoading || (isOtpSent && formData.otp.length !== 4)}
                   className="anti-pink-btn w-full mt-2 py-3.5 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
@@ -279,7 +251,6 @@ const Signup: React.FC = () => {
                 </button>
               </form>
 
-              {/* Footer */}
               <div className="mt-8 text-center pt-6 border-t border-slate-100">
                 <p className="text-slate-500 text-sm font-medium">
                   Recognized Entity?{' '}

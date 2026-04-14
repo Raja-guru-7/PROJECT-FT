@@ -82,16 +82,75 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
+    const loginOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.loginOtp = loginOtp;
+    await user.save();
+
+    try {
+      await sendOtpEmail(user.email, user.name, loginOtp, "Login Verification");
+    } catch (e) {
+      console.error("Email failed:", e);
+    }
+
+    res.json({ msg: "OTP sent to email!", otp: loginOtp, userId: user._id });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// 2.1 VERIFY LOGIN OTP
+router.post("/verify-login-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    if (!user.loginOtp || user.loginOtp !== otp) {
+      return res.status(400).json({ msg: "Invalid OTP" });
+    }
+
+    user.loginOtp = undefined;
+    await user.save();
+
     const payload = { user: { id: user.id } };
-    jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" }, (err, token) => { // ✅
+    jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" }, (err, token) => {
       if (err) throw err;
-      res.json({ token, userId: user._id, msg: "Login Success!" });
+      res.json({ token, userId: user._id, user, msg: "Login Success!" });
     });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: err.message });
   }
 });
+
+
+// 2.2 SEND LOGIN OTP (verify password first)
+router.post("/send-login-otp", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
+
+    const loginOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    user.loginOtp = loginOtp;
+    await user.save();
+
+    try {
+      await sendOtpEmail(user.email, user.name, loginOtp, "Login Verification");
+    } catch (e) {
+      console.error("Email failed:", e);
+    }
+
+    res.json({ msg: "OTP sent to email!" });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 
 // 3. GET USER
 router.get("/user", auth, async (req, res) => {
@@ -249,7 +308,7 @@ router.post("/kyc/send-otp", async (req, res) => {
       return res.status(500).json({ msg: 'Failed to send OTP email. Try again.' });
     }
 
-    res.json({ msg: 'Real OTP sent to your email successfully!' });
+    res.json({ msg: 'Real OTP sent to your mobile successfully!', otp: generatedOtp });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: err.message });
@@ -298,10 +357,10 @@ router.post("/kyc/resend-otp", async (req, res) => {
       await sendOtpEmail(user.email, user.name, newOtp, "KYC Verification");
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
-      return res.status(500).json({ msg: 'Failed to send OTP email. Try again.' });
+      return res.status(500).json({ msg: 'Failed to send OTP mobile. Try again.' });
     }
 
-    res.json({ msg: 'New OTP sent to your email successfully!' });
+    res.json({ msg: 'New OTP sent to your mobile successfully!', otp: newOtp });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: err.message });

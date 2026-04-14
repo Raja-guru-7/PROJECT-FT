@@ -46,11 +46,11 @@ const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ p
     e.preventDefault(); e.stopPropagation();
     const token = localStorage.getItem('token') || localStorage.getItem('x-auth-token');
     if (!token) { alert("Please login to save items."); return; }
-    
+
     // 1. INSTANT OPTIMISTIC UI UPDATE
     const nextState = !isHeartFilled;
-    setIsHeartFilled(nextState); 
-    
+    setIsHeartFilled(nextState);
+
     // 2. INSTANT LOCAL STORAGE UPDATE (The Bypass)
     const userStr = localStorage.getItem('user');
     if (userStr) {
@@ -66,9 +66,9 @@ const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ p
     }
 
     // 3. SILENT BACKEND SYNC (Ignores 500/413 crashes)
-    try { 
-      await api.toggleSaveAsset(productId); 
-    } catch (err) { 
+    try {
+      await api.toggleSaveAsset(productId);
+    } catch (err) {
       console.warn("Backend crash ignored. Local state forced! 😎");
       // Notice we DO NOT revert the heart state here anymore!
     }

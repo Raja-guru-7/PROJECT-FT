@@ -6,7 +6,6 @@ import { FloatingShapes } from '../../components/3d/FloatingShapes';
 
 type Step = 'aadhar' | 'otp' | 'password' | 'success';
 
-// 🔥 FIXED: Added dynamic Base URL to bypass localhost
 const BASE_URL = (import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com') + '/api';
 
 const KYC: React.FC = () => {
@@ -22,11 +21,10 @@ const KYC: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
-  
-  // FIXED: Now it looks for 'userId' from manual signup if 'pendingUserId' isn't there!
+  const [devOtp, setDevOtp] = useState('');
+
   const userId = localStorage.getItem('pendingUserId') || localStorage.getItem('userId');
 
-  // --- 3D Tilt Physics (Flicker-Free) ---
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const mouseXSpring = useSpring(x, { stiffness: 400, damping: 40 });
@@ -41,7 +39,6 @@ const KYC: React.FC = () => {
   };
   const handleMouseLeave = () => { x.set(0); y.set(0); };
 
-  // ── Backend Logic ──────────────────────────────────────────────
   const handleAadharChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\D/g, '').slice(0, 12);
     setAadharNumber(raw);
@@ -51,21 +48,20 @@ const KYC: React.FC = () => {
   const handleAadharSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setAadharError('');
     if (!/^\d{12}$/.test(aadharNumber)) { setAadharError('Aadhaar number must be exactly 12 digits'); return; }
-    
-    if (!userId) { 
-        console.warn('No User ID found in storage, proceeding anyway to check backend response.'); 
-    }
-    
     setAadharLoading(true);
     try {
-      // 🔥 FIXED: Replaced localhost with BASE_URL
-      const res = await fetch(`${BASE_URL}/auth/kyc/send-otp`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ aadharNumber, userId }) 
+      const res = await fetch(`${BASE_URL}/auth/kyc/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aadharNumber, userId })
       });
       const data = await res.json();
-      if (res.ok) setStep('otp'); else setAadharError(data.msg || 'Failed to send OTP');
+      if (res.ok) {
+        if (data.otp) setDevOtp(data.otp);
+        setStep('otp');
+      } else {
+        setAadharError(data.msg || 'Failed to send OTP');
+      }
     } catch { setAadharError('Network error. Please try again.'); }
     finally { setAadharLoading(false); }
   };
@@ -75,11 +71,10 @@ const KYC: React.FC = () => {
     if (otp.length !== 4) { setOtpError('Enter 4-digit OTP'); return; }
     setOtpLoading(true);
     try {
-      // 🔥 FIXED: Replaced localhost with BASE_URL
-      const res = await fetch(`${BASE_URL}/auth/kyc/verify-otp`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ otp, userId }) 
+      const res = await fetch(`${BASE_URL}/auth/kyc/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp, userId })
       });
       const data = await res.json();
       if (res.ok) setStep('password'); else setOtpError(data.msg || 'Invalid OTP');
@@ -93,15 +88,22 @@ const KYC: React.FC = () => {
     if (password !== confirmPassword) { setPasswordError('Passwords do not match'); return; }
     setPasswordLoading(true);
     try {
-      // 🔥 FIXED: Replaced localhost with BASE_URL
-      const res = await fetch(`${BASE_URL}/auth/kyc/set-password`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ password, userId }) 
+      const res = await fetch(`${BASE_URL}/auth/kyc/set-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, userId })
       });
       const data = await res.json();
-      if (res.ok) { localStorage.removeItem('pendingUserId'); setStep('success'); setTimeout(() => navigate('/login'), 2000); }
-      else setPasswordError(data.msg || 'Failed to set password');
+      if (res.ok) {
+        localStorage.removeItem('pendingUserId');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userId');
+        setStep('success');
+        setTimeout(() => navigate('/login'), 2000);
+      } else {
+        setPasswordError(data.msg || 'Failed to set password');
+      }
     } catch { setPasswordError('Network error. Please try again.'); }
     finally { setPasswordLoading(false); }
   };
@@ -109,36 +111,31 @@ const KYC: React.FC = () => {
   const handleResendOtp = async () => {
     setOtpError(''); setOtpLoading(true);
     try {
-      // 🔥 FIXED: Replaced localhost with BASE_URL
-      const res = await fetch(`${BASE_URL}/auth/kyc/resend-otp`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ userId }) 
+      const res = await fetch(`${BASE_URL}/auth/kyc/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
       });
       const data = await res.json();
+      if (data.otp) setDevOtp(data.otp);
       if (!res.ok) setOtpError(data.msg || 'Failed to resend OTP');
     } catch { setOtpError('Network error. Please try again.'); }
     finally { setOtpLoading(false); }
   };
-  // ────────────────────────────────────────────────────────────────────────
 
   const inputClass = "w-full pl-4 pr-4 py-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-slate-400 transition-all placeholder-slate-400";
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 bg-[#F5F5F7] force-light-theme overflow-hidden">
-
-      {/* 💥 NUCLEAR CSS FOR PURE THEME & NO PINK BUTTONS 💥 */}
       <style>{`
         .force-light-theme input { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
         .force-light-theme input::placeholder { color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; }
-        
         button.anti-pink-btn { box-shadow: none !important; background-image: none !important; }
         button.anti-pink-btn:disabled { background-color: #f1f5f9 !important; color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; border: 1px solid #e2e8f0 !important; cursor: not-allowed !important; }
         button.anti-pink-btn:not(:disabled) { background-color: #000000 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; border: none !important; cursor: pointer !important; }
         button.anti-pink-btn:not(:disabled):hover { background-color: #1e293b !important; }
       `}</style>
 
-      {/* Background Shapes */}
       <div className="absolute inset-0 z-0 opacity-10 pointer-events-none mix-blend-multiply">
         <FloatingShapes />
       </div>
@@ -156,7 +153,6 @@ const KYC: React.FC = () => {
           transition={{ duration: 0.5, ease: 'easeOut' }}
           className="w-full"
         >
-          {/* ── Main Card ── */}
           <div
             className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-200"
             style={{
@@ -168,7 +164,7 @@ const KYC: React.FC = () => {
           >
             <div style={{ transform: "translateZ(20px)", backfaceVisibility: "hidden" }}>
 
-              {/* SUCCESS STEP */}
+              {/* SUCCESS */}
               {step === 'success' && (
                 <div className="text-center py-6">
                   <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-green-50 border border-green-200">
@@ -180,7 +176,7 @@ const KYC: React.FC = () => {
                 </div>
               )}
 
-              {/* AADHAR STEP */}
+              {/* AADHAR */}
               {step === 'aadhar' && (
                 <>
                   <div className="text-center mb-8">
@@ -190,7 +186,6 @@ const KYC: React.FC = () => {
                     <h1 className="text-3xl font-black tracking-tight text-slate-900 mb-2">Identity Verification</h1>
                     <p className="text-sm text-slate-500 font-medium">Complete KYC to access the network</p>
                   </div>
-
                   <AnimatePresence>
                     {aadharError && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 p-3 rounded-xl text-center text-red-600 bg-red-50 border border-red-100 text-xs font-bold uppercase tracking-widest">
@@ -198,7 +193,6 @@ const KYC: React.FC = () => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-
                   <form onSubmit={handleAadharSubmit} className="space-y-4">
                     <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 mb-6">
                       <div className="flex items-center gap-2 text-slate-600 font-bold text-xs uppercase tracking-widest mb-4">
@@ -217,7 +211,7 @@ const KYC: React.FC = () => {
                 </>
               )}
 
-              {/* OTP STEP */}
+              {/* OTP */}
               {step === 'otp' && (
                 <>
                   <div className="text-center mb-8">
@@ -225,8 +219,15 @@ const KYC: React.FC = () => {
                       <KeyRound className="text-slate-800" size={32} />
                     </div>
                     <h1 className="text-3xl font-black tracking-tight text-slate-900 mb-2">Verify OTP</h1>
-                    <p className="text-sm text-slate-500 font-medium">Enter the 4-digit OTP sent to your email</p>
+                    <p className="text-sm text-slate-500 font-medium">Enter the 4-digit OTP</p>
                   </div>
+
+                  {devOtp && (
+                    <div className="mb-3 flex items-center justify-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">dev</span>
+                      <span className="text-lg font-black tracking-[0.3em] text-indigo-500 font-mono">{devOtp}</span>
+                    </div>
+                  )}
 
                   <AnimatePresence>
                     {otpError && (
@@ -252,7 +253,7 @@ const KYC: React.FC = () => {
                 </>
               )}
 
-              {/* PASSWORD STEP */}
+              {/* PASSWORD */}
               {step === 'password' && (
                 <>
                   <div className="text-center mb-8">
@@ -262,7 +263,6 @@ const KYC: React.FC = () => {
                     <h1 className="text-3xl font-black tracking-tight text-slate-900 mb-2">Create Password</h1>
                     <p className="text-sm text-slate-500 font-medium">Set your login password for AroundU</p>
                   </div>
-
                   <AnimatePresence>
                     {passwordError && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 p-3 rounded-xl text-center text-red-600 bg-red-50 border border-red-100 text-xs font-bold uppercase tracking-widest">
@@ -270,7 +270,6 @@ const KYC: React.FC = () => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-
                   <form onSubmit={handlePasswordSubmit} className="space-y-4">
                     <div>
                       <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-2">Password</label>

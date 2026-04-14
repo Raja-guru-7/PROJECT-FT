@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
   kycStatus: { type: String, enum: ["none", "pending", "verified"], default: "none" },
   kycOtp: { type: String },
   kycOtpVerified: { type: Boolean, default: false },
+  loginOtp: { type: String },
   livenessStatus: { type: Boolean, default: false },
   phoneVerified: { type: Boolean, default: false },
   location: {
@@ -33,7 +34,7 @@ const UserSchema = new mongoose.Schema({
     last4: { type: String, default: '' },
     expiry: { type: String, default: '' }
   },
-  savedAssets: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]  // ✅ savedItems → savedAssets, 'product' → 'Product'
+  savedAssets: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }]
 }, { timestamps: true });
 
 UserSchema.methods.calculateTrustScore = function () {
