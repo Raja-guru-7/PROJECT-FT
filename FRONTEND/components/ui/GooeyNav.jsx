@@ -9,19 +9,14 @@ const GooeyNav = ({
   particleDistances = [85, 25],
   particleR = 85,
   timeVariance = 200,
-  // Premium vibrant color palette (Cyan, Magenta, Yellow, Neon Green, Purple)
   colors = ['#00E5FF', '#FF0055', '#FFD700', '#39FF14', '#7000FF'],
   initialActiveIndex = 0
 }) => {
   const containerRef = useRef(null);
   const navRef = useRef(null);
   const filterRef = useRef(null);
-  const textRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
-
-  // New state to control when the glow is active
   const [isGlowing, setIsGlowing] = useState(false);
-
   const navigate = useNavigate();
 
   useEffect(() => { setActiveIndex(initialActiveIndex); }, [initialActiveIndex]);
@@ -76,7 +71,7 @@ const GooeyNav = ({
   };
 
   const updateEffectPosition = (element) => {
-    if (!containerRef.current || !filterRef.current || !textRef.current) return;
+    if (!containerRef.current || !filterRef.current) return;
     const containerRect = containerRef.current.getBoundingClientRect();
     const pos = element.getBoundingClientRect();
     const styles = {
@@ -86,18 +81,14 @@ const GooeyNav = ({
       height: `${pos.height}px`
     };
     Object.assign(filterRef.current.style, styles);
-    Object.assign(textRef.current.style, styles);
-    textRef.current.innerText = element.innerText;
   };
 
   const handleClick = (e, index) => {
-    const liEl = e.currentTarget;
+    const liEl = e.currentTarget.parentElement;
     if (activeIndex === index) return;
 
     setActiveIndex(index);
     updateEffectPosition(liEl);
-
-    // TURN ON GLOW
     setIsGlowing(true);
 
     if (filterRef.current) {
@@ -106,18 +97,11 @@ const GooeyNav = ({
       filterRef.current.querySelectorAll('.particle').forEach(p => {
         try { filterRef.current.removeChild(p); } catch { }
       });
+      makeParticles(filterRef.current);
     }
 
-    if (textRef.current) {
-      textRef.current.classList.remove('active');
-      void textRef.current.offsetWidth;
-      textRef.current.classList.add('active');
-    }
-
-    if (filterRef.current) { makeParticles(filterRef.current); }
     if (items[index]?.href) { navigate(items[index].href); }
 
-    // TURN OFF GLOW AFTER ANIMATION COMPLETES (600ms)
     setTimeout(() => {
       setIsGlowing(false);
     }, 600);
@@ -127,7 +111,7 @@ const GooeyNav = ({
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       const liEl = e.currentTarget.parentElement;
-      if (liEl) handleClick({ currentTarget: liEl }, index);
+      if (liEl) handleClick({ currentTarget: liEl.firstChild }, index);
     }
   };
 
@@ -136,8 +120,6 @@ const GooeyNav = ({
     const activeLi = navRef.current.querySelectorAll('li')[activeIndex];
     if (activeLi) {
       updateEffectPosition(activeLi);
-      if (textRef.current) textRef.current.classList.add('active');
-
       if (filterRef.current) {
         filterRef.current.classList.remove('active');
         void filterRef.current.offsetWidth;
@@ -169,9 +151,8 @@ const GooeyNav = ({
           ))}
         </ul>
       </nav>
-      {/* dynamically adding 'glowing' class based on state */}
+      {/* Background glowing particles layer */}
       <span className={`effect filter ${isGlowing ? 'glowing' : ''}`} ref={filterRef} />
-      <span className="effect text" ref={textRef} />
     </div>
   );
 };

@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { User } from '../types';
-import GooeyNav from './GooeyNav';
+// @ts-ignore
+import GooeyNav from './ui/GooeyNav';
 
 interface NavbarProps {
   userRole: 'RENTER' | 'OWNER';
@@ -56,11 +57,9 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
     if (path === '/switch') { onToggleRole(); } else { navigate(path); }
   };
 
-  // ✅ Image Logic Changed Here to fix the random "boy" avatar issue
   const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'U')}&background=0f172a&color=fff&size=128&bold=true`;
   let avatarUrl = (currentUser as any)?.avatar || (currentUser as any)?.picture || (currentUser as any)?.profilePhoto || fallbackAvatar;
 
-  // If the backend forces the annoying dicebear face, override it with normal name initials!
   if (avatarUrl && avatarUrl.includes('dicebear')) {
     avatarUrl = fallbackAvatar;
   }
@@ -96,63 +95,41 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
         )}
       </AnimatePresence>
 
-      {/* Top Navbar */}
-      <div
-        className={`w-[calc(100%-1rem)] sm:w-[calc(100%-2rem)] max-w-7xl mx-auto mt-2 sm:mt-4 h-14 sm:h-16 rounded-full sticky top-2 sm:top-4 z-[2500] transition-all duration-300 bg-white border border-slate-100 ${scrolled ? 'shadow-md' : 'shadow-sm'}`}
-      >
-        <div className="w-full px-3 sm:px-6 h-full flex items-center justify-between">
+      {/* Top Navbar (Only Logo and Profile - NO Extra Nav Links) */}
+      <div className={`w-[calc(100%-1.5rem)] md:w-[calc(100%-4rem)] max-w-7xl mx-auto mt-3 md:mt-4 h-16 rounded-full sticky top-3 md:top-4 z-[2500] transition-all duration-300 bg-white border border-slate-100 ${scrolled ? 'shadow-md' : 'shadow-sm'}`}>
+        <div className="w-full px-4 md:px-6 h-full flex items-center justify-between">
 
           {/* Logo Section */}
           <Link to="/explore" className="flex items-center gap-2 group">
-            <div className="p-1.5 sm:p-2 rounded-full bg-slate-50 group-hover:bg-slate-100 transition-colors">
-              <ShieldCheck className="text-black w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="p-1.5 rounded-full bg-slate-50 group-hover:bg-slate-100 transition-colors">
+              <ShieldCheck className="text-black" size={20} />
             </div>
-            <span className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">
-              AroundU
-            </span>
+            <span className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">AroundU</span>
           </Link>
 
           {/* Profile Section */}
-          <div className="flex items-center gap-3 sm:gap-4 relative" ref={dropdownRef}>
-            {/* Hidden on Mobile, shown on Small (sm) screens and above */}
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm font-semibold text-slate-800 truncate max-w-[120px]">
-                {currentUser ? currentUser.name : '...'}
-              </span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {userRole} MODE
-              </span>
+          <div className="flex items-center gap-3 relative" ref={dropdownRef}>
+            <div className="hidden sm:flex flex-col items-end gap-0.5">
+              <span className="text-sm font-semibold text-slate-800">{currentUser ? currentUser.name : '...'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userRole} MODE</span>
             </div>
 
-            <button
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="relative hover:scale-105 transition-transform"
-            >
+            <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative hover:scale-105 transition-transform">
               <img
                 src={avatarUrl} alt="Profile"
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-slate-100 bg-slate-100"
+                className="w-10 h-10 rounded-full object-cover border-2 border-slate-100 bg-slate-100"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackAvatar; }}
               />
-              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-500 border-2 border-white" />
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
             </button>
 
-            {/* Profile Dropdown */}
             {isProfileOpen && (
-              <div className="absolute top-12 sm:top-14 right-0 w-[220px] sm:w-64 p-2 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right">
-                <div className="p-2 sm:p-3 mb-1 flex items-center gap-3 border-b border-slate-50">
-                  <img
-                    src={avatarUrl}
-                    alt="Profile"
-                    className="w-10 h-10 rounded-full object-cover bg-slate-100"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackAvatar; }}
-                  />
-                  <div className="overflow-hidden">
-                    <p className="text-sm font-bold text-slate-800 truncate">
-                      {currentUser?.name || 'Loading...'}
-                    </p>
-                    <p className="text-xs font-medium text-slate-500">
-                      {currentUser?.trustScore || 30} Trust Score
-                    </p>
+              <div className="absolute top-14 right-0 w-60 sm:w-64 p-2 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right">
+                <div className="p-3 mb-1 flex items-center gap-3 border-b border-slate-50">
+                  <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full object-cover bg-slate-100 shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackAvatar; }} />
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 line-clamp-1">{currentUser?.name || 'Loading...'}</p>
+                    <p className="text-xs font-medium text-slate-500">{currentUser?.trustScore || 30} Trust Score</p>
                   </div>
                 </div>
                 <div className="space-y-1 mt-1">
@@ -170,11 +147,12 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
         </div>
       </div>
 
-      {/* Bottom Nav */}
-      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[2500] w-max max-w-[95vw]">
+      {/* Bottom Nav - Visible on BOTH Mobile and Desktop */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2500] w-max max-w-[95vw]">
         <GooeyNav
           items={navItems}
           initialActiveIndex={activeNavIndex}
+          colors={['#a855f7', '#c026d3', '#db2777', '#7e22ce', '#e879f9']}
         />
       </div>
     </>

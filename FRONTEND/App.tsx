@@ -69,8 +69,8 @@ const AppContent: React.FC = () => {
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center relative z-10">
           <div className="text-center">
-            <Loader2 className="w-10 h-10 animate-spin text-slate-400 mx-auto mb-4" />
-            <p className="text-slate-500 font-medium text-sm">Loading...</p>
+            <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin text-slate-400 mx-auto mb-3 sm:mb-4" />
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">Loading...</p>
           </div>
         </div>
       ) : (
@@ -79,11 +79,10 @@ const AppContent: React.FC = () => {
             <Navbar userRole={userRole} onToggleRole={toggleRole} onLogout={handleLogout} />
           )}
 
-          {/* 
-            MOBILE FIX: pb-20 on mobile (bottom nav height) + pb-28 on md+ screens
+          {/* MOBILE FIX: pb-20 on mobile (bottom nav height) + pb-28 on md+ screens
             Safe area inset handles iPhone home bar notch
           */}
-          <main className={`flex-1 w-full max-w-full overflow-x-hidden ${isLandingPage ? '' : 'pb-20 md:pb-28 safe-bottom'}`}>
+          <main className={`flex-1 w-full max-w-full overflow-x-hidden ${isLandingPage ? '' : 'pb-24 sm:pb-28 safe-bottom'}`}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={isAuthenticated ? <Navigate to="/explore" replace /> : <Landing onLogin={() => navigate('/login')} />} />

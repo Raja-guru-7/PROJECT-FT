@@ -125,7 +125,7 @@ const Signup: React.FC = () => {
   };
   const handleMouseLeave = () => { x.set(0); y.set(0); };
 
-  const inputClass = "w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium outline-none focus:border-slate-400 transition-all placeholder-slate-400";
+  const inputClass = "w-full pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium outline-none focus:border-slate-400 transition-all placeholder-slate-400 text-xs sm:text-sm";
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 bg-[#F5F5F7] force-light-theme overflow-hidden">
@@ -141,9 +141,9 @@ const Signup: React.FC = () => {
       <AnimatePresence>
         {toast && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700"
+            className="fixed top-6 sm:top-10 left-1/2 -translate-x-1/2 z-[100] px-4 sm:px-6 py-2 sm:py-3 rounded-full sm:rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700 whitespace-nowrap"
           >
-            <span className="font-bold tracking-widest uppercase text-sm">{toast}</span>
+            <span className="font-bold tracking-widest uppercase text-[10px] sm:text-sm">{toast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -154,7 +154,7 @@ const Signup: React.FC = () => {
 
       <motion.div
         style={{ perspective: 1200, transformStyle: "preserve-3d" }}
-        className="relative z-20 w-full max-w-lg my-auto"
+        className="relative z-20 w-full max-w-lg mx-auto"
       >
         <motion.div
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}
@@ -163,7 +163,7 @@ const Signup: React.FC = () => {
           className="w-full"
         >
           <div
-            className="bg-white p-6 sm:p-10 rounded-[2.5rem] border border-slate-200"
+            className="bg-white p-5 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200"
             style={{
               boxShadow: "0 20px 40px -15px rgba(0,0,0,0.05)",
               transform: "translate3d(0, 0, 30px)",
@@ -173,88 +173,88 @@ const Signup: React.FC = () => {
           >
             <div style={{ transform: "translateZ(20px)", backfaceVisibility: "hidden" }}>
 
-              <div className="text-center mb-8">
-                <Link to="/" className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl mb-4 bg-slate-50 border border-slate-200 shadow-sm hover:scale-105 transition-transform">
-                  <ShieldCheck className="text-slate-800" size={32} />
+              <div className="text-center mb-6 sm:mb-8">
+                <Link to="/" className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-[1rem] sm:rounded-2xl mb-3 sm:mb-4 bg-slate-50 border border-slate-200 shadow-sm hover:scale-105 transition-transform">
+                  <ShieldCheck className="text-slate-800 w-6 h-6 sm:w-8 sm:h-8" />
                 </Link>
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Create Profile</h1>
-                <p className="text-slate-500 font-medium text-sm sm:text-base">Register your identity on the network</p>
+                <h1 className="text-xl sm:text-3xl font-black tracking-tight text-slate-900 mb-1.5 sm:mb-2 uppercase">Create Profile</h1>
+                <p className="text-slate-500 font-medium text-xs sm:text-base">Register your identity on the network</p>
               </div>
 
               <AnimatePresence>
                 {error && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="mb-6 p-4 rounded-xl flex items-center justify-center bg-red-50 border border-red-100"
+                    className="mb-4 sm:mb-6 p-3 sm:p-4 rounded-xl flex items-center justify-center bg-red-50 border border-red-100 overflow-hidden"
                   >
-                    <span className="text-red-600 font-bold text-xs uppercase tracking-[0.1em] text-center">{error}</span>
+                    <span className="text-red-600 font-bold text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-[0.1em] text-center">{error}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <form onSubmit={handleSignup} className="space-y-5">
+              <form onSubmit={handleSignup} className="space-y-4 sm:space-y-5">
 
                 <div>
-                  <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Operative Designation</label>
+                  <label className="block text-slate-600 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1 sm:mb-1.5 ml-1">Operative Designation</label>
                   <div className="relative">
-                    <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <User size={16} className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 sm:w-4 sm:h-4 w-[14px] h-[14px]" />
                     <input type="text" placeholder="John Doe" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputClass} />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-1.5">Communication Frequency</label>
+                  <label className="block text-slate-600 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1 sm:mb-1.5 ml-1">Communication Frequency</label>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Mail size={16} className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 sm:w-4 sm:h-4 w-[14px] h-[14px]" />
                     <input type="email" placeholder="john@network.local" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputClass} />
                   </div>
                 </div>
 
                 {isOtpSent && !isVerified && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                    className="space-y-3 p-5 rounded-2xl bg-amber-50 border border-amber-200"
+                    className="space-y-2 sm:space-y-3 p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 mt-2"
                   >
-                    <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-widest">
-                      <ShieldCheck size={16} /> Verification Required
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-amber-800 font-bold text-[10px] sm:text-xs uppercase tracking-widest justify-center sm:justify-start">
+                      <ShieldCheck size={14} className="sm:w-4 sm:h-4" /> Verification Required
                     </div>
                     <input type="text" placeholder="ENTER 4-DIGIT CODE" maxLength={4} value={formData.otp} onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, '') })}
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 font-bold text-center tracking-[0.5em] font-mono outline-none focus:border-slate-400 transition-all"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-white border border-slate-200 text-slate-900 font-bold text-center tracking-[0.3em] sm:tracking-[0.5em] font-mono outline-none focus:border-slate-400 transition-all text-xs sm:text-sm"
                     />
-                    <p className="text-[10px] text-amber-700 text-center uppercase tracking-wider font-bold">
+                    <p className="text-[9px] sm:text-[10px] text-amber-700 text-center uppercase tracking-wider font-bold">
                       Check your email for the security cipher
                     </p>
                   </motion.div>
                 )}
 
-                <div className="flex items-start gap-3 px-1 mt-2">
-                  <input type="checkbox" id="terms" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="w-4 h-4 mt-0.5 rounded accent-slate-900" />
-                  <label htmlFor="terms" className="text-xs text-slate-600 cursor-pointer leading-tight font-medium">
+                <div className="flex items-start gap-2 sm:gap-3 px-1 mt-1 sm:mt-2">
+                  <input type="checkbox" id="terms" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="w-3.5 h-3.5 sm:w-4 sm:h-4 mt-0.5 rounded accent-slate-900 shrink-0" />
+                  <label htmlFor="terms" className="text-[10px] sm:text-xs text-slate-600 cursor-pointer leading-tight font-medium">
                     I acknowledge the <span className="text-slate-900 font-bold hover:underline">Network Terms</span> and consent to data node synchronization.
                   </label>
                 </div>
 
                 <button type="submit" disabled={isLoading || (isOtpSent && formData.otp.length !== 4)}
-                  className="anti-pink-btn w-full mt-2 py-3.5 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  className="anti-pink-btn w-full mt-2 py-3 sm:py-3.5 rounded-xl font-black uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-[10px] sm:text-xs"
                 >
-                  {isLoading ? <Loader2 className="animate-spin" size={22} /> : isOtpSent ? <>Verify & Register <CheckCircle2 size={18} /></> : <>Send Verification Code <ArrowRight size={18} /></>}
+                  {isLoading ? <Loader2 className="animate-spin sm:w-[22px] sm:h-[22px]" size={18} /> : isOtpSent ? <>Verify & Register <CheckCircle2 className="sm:w-[18px] sm:h-[18px]" size={16} /></> : <>Send Verification Code <ArrowRight className="sm:w-[18px] sm:h-[18px]" size={16} /></>}
                 </button>
 
-                <div className="relative mt-4">
+                <div className="relative mt-3 sm:mt-4">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-                  <div className="relative flex justify-center"><span className="px-4 text-slate-400 uppercase tracking-widest text-xs font-bold bg-white">Or Sign Up With</span></div>
+                  <div className="relative flex justify-center"><span className="px-3 sm:px-4 text-slate-400 uppercase tracking-widest text-[9px] sm:text-xs font-bold bg-white">Or Sign Up With</span></div>
                 </div>
 
                 <button type="button" onClick={handleGoogleSignIn} disabled={isGoogleLoading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-sm transition-all hover:bg-slate-50 disabled:opacity-60 active:scale-[0.98]"
+                  className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 py-2.5 sm:py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition-all hover:bg-slate-50 disabled:opacity-60 active:scale-[0.98]"
                 >
-                  {isGoogleLoading ? <Loader2 className="animate-spin" size={20} /> : <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="G" className="w-4 h-4" />}
+                  {isGoogleLoading ? <Loader2 className="animate-spin sm:w-5 sm:h-5" size={16} /> : <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="G" className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                   Continue with Google
                 </button>
               </form>
 
-              <div className="mt-8 text-center pt-6 border-t border-slate-100">
-                <p className="text-slate-500 text-sm font-medium">
+              <div className="mt-6 sm:mt-8 text-center pt-5 sm:pt-6 border-t border-slate-100">
+                <p className="text-slate-500 text-xs sm:text-sm font-medium">
                   Recognized Entity?{' '}
-                  <Link to="/login" className="text-slate-900 font-bold hover:underline uppercase tracking-wider text-xs ml-1">Access Node</Link>
+                  <Link to="/login" className="text-slate-900 font-bold hover:underline uppercase tracking-wider text-[10px] sm:text-xs ml-1">Access Node</Link>
                 </p>
               </div>
 

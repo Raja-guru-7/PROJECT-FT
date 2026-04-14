@@ -15,22 +15,22 @@ const TrustBadge: React.FC<TrustBadgeProps> = ({ score, isVerified, size = 'md' 
     return 'text-orange-600 bg-orange-50 border-orange-200';
   };
 
-  // Responsive sizing logic
-  // Added 'whitespace-nowrap' to prevent the badge from breaking into two lines on mobile
+  // Responsive sizing logic 
+  // Maintained whitespace-nowrap and flexible padding for mobile
   const sizes = {
-    sm: 'text-[10px] sm:text-xs py-0.5 px-2 gap-1 whitespace-nowrap',
-    md: 'text-xs sm:text-sm py-1 px-3 gap-1.5 sm:gap-2 whitespace-nowrap',
-    lg: 'text-sm sm:text-base py-1.5 px-4 gap-2 whitespace-nowrap'
+    sm: 'text-[9px] sm:text-[10px] md:text-xs py-0.5 px-1.5 sm:px-2 gap-0.5 sm:gap-1 whitespace-nowrap',
+    md: 'text-[10px] sm:text-xs md:text-sm py-1 px-2 sm:px-3 gap-1 sm:gap-1.5 whitespace-nowrap',
+    lg: 'text-xs sm:text-sm md:text-base py-1 sm:py-1.5 px-3 sm:px-4 gap-1.5 sm:gap-2 whitespace-nowrap'
   };
 
   const iconSizes = {
     sm: 10,
-    md: 14,
-    lg: 18
+    md: 12, // slightly smaller on mobile, scales naturally
+    lg: 16
   };
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2 max-w-full overflow-hidden">
+    <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 max-w-full overflow-hidden">
       {/* Main Trust Pill */}
       <div className={`flex items-center border rounded-full font-bold transition-all ${getScoreColor()} ${sizes[size]}`}>
         <Star
@@ -38,13 +38,13 @@ const TrustBadge: React.FC<TrustBadgeProps> = ({ score, isVerified, size = 'md' 
           fill="currentColor"
           className="shrink-0"
         />
-        <span>{score}% <span className="hidden xs:inline">Trust</span></span>
+        <span>{score}% <span className="hidden sm:inline">Trust</span></span>
       </div>
 
       {/* Verified Badge */}
       {isVerified && (
-        <div className={`flex items-center gap-1 text-blue-600 font-bold shrink-0 ${size === 'sm' ? 'text-[10px]' : 'text-xs sm:text-sm'}`}>
-          <ShieldCheck size={size === 'sm' ? 12 : 16} className="shrink-0" />
+        <div className={`flex items-center gap-0.5 sm:gap-1 text-blue-600 font-bold shrink-0 ${size === 'sm' ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs md:text-sm'}`}>
+          <ShieldCheck size={size === 'sm' ? 10 : 14} className="shrink-0 sm:w-4 sm:h-4" />
           <span className="tracking-tight">Verified</span>
         </div>
       )}

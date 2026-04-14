@@ -34,47 +34,49 @@ export const ReturnHandover: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#F5F5F7] min-h-screen px-4 md:px-8 py-12 pb-24 relative">
-      <button onClick={() => navigate(-1)} className="absolute top-12 left-4 md:left-8 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
-        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
+    <div className="bg-[#F5F5F7] min-h-screen px-4 md:px-8 py-8 sm:py-12 pb-24 relative">
+      <button onClick={() => navigate(-1)} className="absolute top-4 sm:top-12 left-4 md:left-8 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10 bg-white/80 sm:bg-transparent backdrop-blur px-3 py-1.5 sm:p-0 rounded-full shadow-sm border border-slate-100 sm:shadow-none sm:border-none">
+        <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px] group-hover:-translate-x-1 transition-transform" /> Back
       </button>
-      <div className="max-w-md mx-auto relative z-10">
+      <div className="max-w-md mx-auto relative z-10 mt-10 sm:mt-0">
 
-        <h1 className="text-3xl font-bold tracking-tight text-slate-800 mb-8 text-center">Return Protocol</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-800 mb-6 sm:mb-8 text-center">Return Protocol</h1>
 
-        <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+        <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200 p-6 sm:p-8 shadow-sm">
           {step === 1 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-6">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto bg-amber-50 text-amber-600 border border-amber-100">
-                <RotateCcw size={30} />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 sm:space-y-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto bg-amber-50 text-amber-600 border border-amber-100">
+                <RotateCcw size={24} className="sm:w-[30px] sm:h-[30px]" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800">Initiate Return</h2>
-              <p className="text-sm font-medium text-slate-500">Generate a return code. Share it with the owner to confirm item return.</p>
-              <button onClick={initiateReturn} disabled={loading} className="w-full py-3.5 rounded-full bg-black text-white font-semibold flex items-center justify-center disabled:opacity-50">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-1">Initiate Return</h2>
+                <p className="text-xs sm:text-sm font-medium text-slate-500 px-2">Generate a return code. Share it with the owner to confirm item return.</p>
+              </div>
+              <button onClick={initiateReturn} disabled={loading} className="w-full py-3.5 rounded-full bg-black text-white text-sm sm:text-base font-semibold flex items-center justify-center disabled:opacity-50 mt-2 sm:mt-0">
                 {loading ? <Loader2 className="animate-spin" size={20} /> : 'Generate Code'}
               </button>
             </motion.div>
           )}
 
           {step === 2 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 sm:space-y-6 text-center">
               {returnOtp && (
-                <div className="rounded-2xl p-6 bg-slate-50 border border-slate-200">
-                  <p className="text-slate-500 font-semibold text-xs uppercase tracking-wide mb-2">Dev Override Active</p>
-                  <p className="text-slate-800 font-bold text-4xl font-mono tracking-widest">{returnOtp.slice(-4)}</p>
+                <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 bg-slate-50 border border-slate-200">
+                  <p className="text-slate-500 font-semibold text-[10px] sm:text-xs uppercase tracking-wide mb-1 sm:mb-2">Dev Override Active</p>
+                  <p className="text-slate-800 font-bold text-3xl sm:text-4xl font-mono tracking-widest">{returnOtp.slice(-4)}</p>
                 </div>
               )}
-              <div className="pt-4">
-                <p className="text-xs font-bold uppercase text-slate-400 mb-4">Owner enters code below</p>
-                <div className="flex justify-center gap-3 mb-6">
+              <div className="pt-2 sm:pt-4">
+                <p className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 mb-3 sm:mb-4">Owner enters code below</p>
+                <div className="flex justify-center gap-2 sm:gap-3 mb-5 sm:mb-6">
                   {otp.map((digit, i) => (
                     <input key={i} ref={otpRefs[i]} type="text" maxLength={1} value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
-                      className="w-14 h-16 text-center text-2xl font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-slate-400 transition-colors"
+                      className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-slate-400 transition-colors"
                       style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }} />
                   ))}
                 </div>
-                <button onClick={completeReturn} disabled={otp.some(d => !d) || loading} className="w-full py-3.5 rounded-full bg-black text-white font-semibold flex items-center justify-center disabled:opacity-50">
+                <button onClick={completeReturn} disabled={otp.some(d => !d) || loading} className="w-full py-3.5 rounded-full bg-black text-white text-sm sm:text-base font-semibold flex items-center justify-center disabled:opacity-50">
                   {loading ? <Loader2 className="animate-spin" size={20} /> : 'Confirm Return'}
                 </button>
               </div>
@@ -82,9 +84,9 @@ export const ReturnHandover: React.FC = () => {
           )}
         </div>
 
-        <div className="mt-6 flex gap-4 p-5 rounded-2xl bg-white border border-slate-100 shadow-sm items-start">
-          <ShieldCheck size={24} className="shrink-0 text-slate-400 mt-0.5" />
-          <p className="text-slate-600 font-medium text-xs leading-relaxed">Both parties trust scores will increase upon successful return.</p>
+        <div className="mt-4 sm:mt-6 flex gap-3 sm:gap-4 p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-white border border-slate-100 shadow-sm items-start">
+          <ShieldCheck size={20} className="sm:w-6 sm:h-6 shrink-0 text-slate-400 mt-0.5" />
+          <p className="text-slate-600 font-medium text-[10px] sm:text-xs leading-relaxed">Both parties trust scores will increase upon successful return.</p>
         </div>
       </div>
     </div>

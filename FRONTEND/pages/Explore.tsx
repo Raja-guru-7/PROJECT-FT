@@ -47,11 +47,9 @@ const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ p
     const token = localStorage.getItem('token') || localStorage.getItem('x-auth-token');
     if (!token) { alert("Please login to save items."); return; }
 
-    // 1. INSTANT OPTIMISTIC UI UPDATE
     const nextState = !isHeartFilled;
     setIsHeartFilled(nextState);
 
-    // 2. INSTANT LOCAL STORAGE UPDATE (The Bypass)
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const userObj = JSON.parse(userStr);
@@ -65,12 +63,10 @@ const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ p
       localStorage.setItem('user', JSON.stringify(userObj));
     }
 
-    // 3. SILENT BACKEND SYNC (Ignores 500/413 crashes)
     try {
       await api.toggleSaveAsset(productId);
     } catch (err) {
       console.warn("Backend crash ignored. Local state forced! 😎");
-      // Notice we DO NOT revert the heart state here anymore!
     }
   };
 
@@ -135,7 +131,7 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
                   <span className="text-[10px] font-bold text-amber-700">{item.ownerTrustScore}</span>
                 </div>
               </div>
-              <h3 className="text-lg font-medium text-slate-800 leading-tight group-hover:text-black transition-colors line-clamp-2 mb-3">{item.title}</h3>
+              <h3 className="text-base sm:text-lg font-medium text-slate-800 leading-tight group-hover:text-black transition-colors line-clamp-2 mb-3">{item.title}</h3>
               <div className="mt-auto flex items-center gap-1.5 text-xs font-medium text-slate-500">
                 <MapPin size={14} className="text-slate-400" />
                 <span>{item.calculatedDistance.toFixed(1)} km away</span>
@@ -248,80 +244,80 @@ const Explore: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
-              className="relative w-[85vw] sm:max-w-md h-full bg-white p-6 sm:p-8 flex flex-col shadow-2xl rounded-l-[1.5rem] sm:rounded-l-[2rem] ml-auto"
+              className="relative w-full sm:w-[85vw] md:max-w-md h-full bg-white p-5 sm:p-8 flex flex-col shadow-2xl sm:rounded-l-[2rem] ml-auto"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Filters</h2>
+              <div className="flex items-center justify-between mb-6 sm:mb-8 mt-4 sm:mt-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Filters</h2>
                 <button onClick={() => setShowFilters(false)} className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"><X size={20} /></button>
               </div>
-              <div className="flex-1 space-y-8 overflow-y-auto pr-2 pb-10">
+              <div className="flex-1 space-y-6 sm:space-y-8 overflow-y-auto pr-2 pb-10">
                 <div>
-                  <label className="text-sm font-semibold text-slate-600 mb-3 block">Category</label>
+                  <label className="text-xs sm:text-sm font-semibold text-slate-600 mb-2 sm:mb-3 block">Category</label>
                   <div className="flex flex-wrap gap-2">
                     {['Electronics', 'Tools', 'Camping', 'Vehicle', 'Media', 'Home'].map(cat => (
-                      <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)} className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all border ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
+                      <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)} className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all border ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
                         {cat}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="p-6 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="text-sm font-semibold text-slate-600">Max Price (₹)</label>
-                    <span className="text-base font-bold text-slate-800">₹{maxPrice}</span>
+                <div className="p-5 sm:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] bg-white border border-slate-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-3 sm:mb-4">
+                    <label className="text-xs sm:text-sm font-semibold text-slate-600">Max Price (₹)</label>
+                    <span className="text-sm sm:text-base font-bold text-slate-800">₹{maxPrice}</span>
                   </div>
                   <input type="range" min="0" max="10000" step="100" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" />
                 </div>
-                <div className="p-6 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="text-sm font-semibold text-slate-600">Distance Limit</label>
-                    <span className="text-base font-bold text-slate-800">{maxDistance.toFixed(1)} km</span>
+                <div className="p-5 sm:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] bg-white border border-slate-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-3 sm:mb-4">
+                    <label className="text-xs sm:text-sm font-semibold text-slate-600">Distance Limit</label>
+                    <span className="text-sm sm:text-base font-bold text-slate-800">{maxDistance.toFixed(1)} km</span>
                   </div>
                   <input type="range" min="1" max="100" step="0.5" value={maxDistance} onChange={(e) => setMaxDistance(parseFloat(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" />
                 </div>
               </div>
               <div className="pt-4 bg-white">
-                <button onClick={() => { setShowFilters(false); fetchItems(); }} className="w-full py-4 rounded-full bg-slate-900 text-white font-bold transition-all hover:bg-slate-800 shadow-md">Apply Filters</button>
+                <button onClick={() => { setShowFilters(false); fetchItems(); }} className="w-full py-3.5 sm:py-4 rounded-full bg-slate-900 text-white text-sm sm:text-base font-bold transition-all hover:bg-slate-800 shadow-md">Apply Filters</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 py-8 lg:py-12">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 py-8 lg:py-12 mt-2 sm:mt-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800">Explore Collection</h1>
 
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-auto flex-grow">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-auto sm:min-w-[250px] flex-grow">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search items..." className="w-full pl-11 pr-4 py-3 rounded-full bg-white text-sm font-medium text-slate-900 border border-slate-100 focus:outline-none focus:border-slate-300" style={{ color: '#000', WebkitTextFillColor: '#000' }} />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search items..." className="w-full pl-11 pr-4 py-2.5 sm:py-3 rounded-full bg-white text-sm font-medium text-slate-900 border border-slate-100 focus:outline-none focus:border-slate-300" style={{ color: '#000', WebkitTextFillColor: '#000' }} />
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-              <button onClick={syncLocation} className="flex-1 sm:flex-none flex items-center justify-center min-w-max gap-2 px-4 py-3 rounded-full bg-white border border-slate-100 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-                {isLocating ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} className="text-blue-500" />}
+            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full sm:w-auto">
+              <button onClick={syncLocation} className="flex-1 sm:flex-none flex items-center justify-center min-w-max gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-full bg-white border border-slate-100 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+                {isLocating ? <Loader2 size={14} className="animate-spin sm:w-4 sm:h-4" /> : <Navigation size={14} className="text-blue-500 sm:w-4 sm:h-4" />}
                 Near Me
               </button>
 
-              <div className="flex-1 sm:flex-none flex items-center min-w-max bg-white border border-slate-100 rounded-full p-1 shadow-sm">
-                <button onClick={() => setViewMode('grid')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
-                  <LayoutGrid size={16} /> Grid
+              <div className="flex items-center min-w-max bg-white border border-slate-100 rounded-full p-1 shadow-sm">
+                <button onClick={() => setViewMode('grid')} className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
+                  <LayoutGrid size={14} className="sm:w-4 sm:h-4" /> Grid
                 </button>
-                <button onClick={() => setViewMode('map')} className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
-                  <MapIcon size={16} /> Map
+                <button onClick={() => setViewMode('map')} className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>
+                  <MapIcon size={14} className="sm:w-4 sm:h-4" /> Map
                 </button>
               </div>
 
-              <button onClick={() => setShowFilters(true)} className="p-3 shrink-0 rounded-full bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Filter size={18} className="text-slate-600" /></button>
+              <button onClick={() => setShowFilters(true)} className="p-2.5 sm:p-3 shrink-0 rounded-full bg-white border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm"><Filter size={16} className="text-slate-600 sm:w-[18px] sm:h-[18px]" /></button>
             </div>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="py-32 text-center"><Loader2 className="animate-spin mx-auto text-slate-400" size={40} /></div>
+          <div className="py-20 sm:py-32 text-center"><Loader2 className="animate-spin mx-auto text-slate-400" size={40} /></div>
         ) : viewMode === 'map' ? (
-          <div className="h-[600px] w-full rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm relative z-10">
+          <div className="h-[400px] lg:h-[600px] w-full rounded-3xl sm:rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm relative z-10">
             <MapContainer
               center={userLocation ? [userLocation.lat, userLocation.lng] : [11.3410, 77.7172]}
               zoom={12}
@@ -353,7 +349,7 @@ const Explore: React.FC = () => {
             </MapContainer>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {filteredItems.map((item) => (<TiltCard key={item.id} item={item} savedAssets={savedAssets} />))}
           </div>
         )}
