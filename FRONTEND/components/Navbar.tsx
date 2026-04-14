@@ -109,7 +109,8 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
 
           {/* Profile Section */}
           <div className="flex items-center gap-3 relative" ref={dropdownRef}>
-            <div className="hidden sm:flex flex-col items-end gap-0.5">
+            {/* CHINNA MAATRAM: 'sm:flex' ah 'md:flex' nu maathiyachu. Ipo mobile-la kandippa text theriyaathu */}
+            <div className="hidden md:flex flex-col items-end gap-0.5">
               <span className="text-sm font-semibold text-slate-800">{currentUser ? currentUser.name : '...'}</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userRole} MODE</span>
             </div>
