@@ -1,9 +1,8 @@
 {
-  "outputDirectory": "FRONTEND/dist",
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/FRONTEND/dist/index.html"
+      "destination": "/index.html"
     }
   ]
 }
