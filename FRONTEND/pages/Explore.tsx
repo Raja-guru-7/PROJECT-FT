@@ -87,7 +87,11 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
   const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["10deg", "-10deg"]);
   const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-10deg", "10deg"]);
 
+  // 🚀 FIX: Detect if device supports hover (Laptop/PC) vs touch (Mobile)
+  const isHoverable = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (!isHoverable) return; // Disable 3D calc on mobile
     const rect = e.currentTarget.getBoundingClientRect();
     const xPct = (e.clientX - rect.left) / rect.width - 0.5;
     const yPct = (e.clientY - rect.top) / rect.height - 0.5;
@@ -96,6 +100,7 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
   };
 
   const handleMouseLeave = () => {
+    if (!isHoverable) return;
     x.set(0);
     y.set(0);
   };
@@ -105,8 +110,15 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
       <motion.div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        style={{ rotateX, rotateY, transformStyle: "preserve-3d", willChange: "transform" }}
-        whileHover={{ scale: 1.02 }}
+        // 🚀 FIX: Apply rotate ONLY on Desktop. Apply whileTap (click feedback) ONLY on Mobile.
+        style={{
+          rotateX: isHoverable ? rotateX : 0,
+          rotateY: isHoverable ? rotateY : 0,
+          transformStyle: "preserve-3d",
+          willChange: "transform"
+        }}
+        whileHover={isHoverable ? { scale: 1.02 } : {}}
+        whileTap={!isHoverable ? { scale: 0.98 } : {}}
         className="h-full w-full"
       >
         <Link to={`/item/${item.id}`} className="block h-full group outline-none">
@@ -115,7 +127,7 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
           >
             <div className="relative aspect-[4/3] rounded-[1.5rem] overflow-hidden mb-4 bg-slate-50"
               style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "translate3d(0,0,0)", WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
-              <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <img src={item.imageUrl} alt={item.title} className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isHoverable ? 'group-hover:scale-105' : ''}`} />
               <HeartButton productId={item.id} initialSaved={savedAssets.has(item.id)} />
               <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1"
                 style={{ transform: "translateZ(20px)", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}>
@@ -131,7 +143,7 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
                   <span className="text-[10px] font-bold text-amber-700">{item.ownerTrustScore}</span>
                 </div>
               </div>
-              <h3 className="text-base sm:text-lg font-medium text-slate-800 leading-tight group-hover:text-black transition-colors line-clamp-2 mb-3">{item.title}</h3>
+              <h3 className={`text-base sm:text-lg font-medium text-slate-800 leading-tight line-clamp-2 mb-3 transition-colors ${isHoverable ? 'group-hover:text-black' : ''}`}>{item.title}</h3>
               <div className="mt-auto flex items-center gap-1.5 text-xs font-medium text-slate-500">
                 <MapPin size={14} className="text-slate-400" />
                 <span>{item.calculatedDistance.toFixed(1)} km away</span>

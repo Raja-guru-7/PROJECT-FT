@@ -9,6 +9,10 @@ import { User } from '../types';
 // @ts-ignore
 import GooeyNav from './ui/GooeyNav';
 
+// 👇👇👇 SOCKET IMPORT ADD PANNIRUKEN 👇👇👇
+import io from 'socket.io-client';
+const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+
 interface NavbarProps {
   userRole: 'RENTER' | 'OWNER';
   onToggleRole: () => void;
@@ -25,7 +29,16 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
 
   useEffect(() => {
     const fetchUser = async () => {
-      try { const user = await api.getCurrentUser(); setCurrentUser(user); } catch { }
+      try {
+        const user = await api.getCurrentUser();
+        setCurrentUser(user);
+
+        // 👇👇👇 NEW: USER LOGIN AANA UDANE ONLINE TRIGGER PANNUM 👇👇👇
+        if (user && (user.id || (user as any)._id)) {
+          const userId = user.id || (user as any)._id;
+          socket.emit('join-user-room', userId);
+        }
+      } catch { }
     };
     fetchUser();
   }, []);
@@ -95,7 +108,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
         )}
       </AnimatePresence>
 
-      {/* Top Navbar (Only Logo and Profile - NO Extra Nav Links) */}
+      {/* Top Navbar */}
       <div className={`w-[calc(100%-1.5rem)] md:w-[calc(100%-4rem)] max-w-7xl mx-auto mt-3 md:mt-4 h-16 rounded-full sticky top-3 md:top-4 z-[2500] transition-all duration-300 bg-white border border-slate-100 ${scrolled ? 'shadow-md' : 'shadow-sm'}`}>
         <div className="w-full px-4 md:px-6 h-full flex items-center justify-between">
 
@@ -109,7 +122,6 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
 
           {/* Profile Section */}
           <div className="flex items-center gap-3 relative" ref={dropdownRef}>
-            {/* CHINNA MAATRAM: 'sm:flex' ah 'md:flex' nu maathiyachu. Ipo mobile-la kandippa text theriyaathu */}
             <div className="hidden md:flex flex-col items-end gap-0.5">
               <span className="text-sm font-semibold text-slate-800">{currentUser ? currentUser.name : '...'}</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userRole} MODE</span>
@@ -148,7 +160,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
         </div>
       </div>
 
-      {/* Bottom Nav - Visible on BOTH Mobile and Desktop */}
+      {/* Bottom Nav */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2500] w-max max-w-[95vw]">
         <GooeyNav
           items={navItems}
@@ -166,6 +178,7 @@ const ProfileMenuItem = ({ icon, label, variant = 'default', onClick, subLabel }
     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${variant === 'danger' ? 'text-red-500 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-50 hover:text-black'}`}
   >
     <div className="flex items-center gap-3">{icon} {label}</div>
+    {/* Profile Menu Label */}
     {subLabel && <span className="text-xs text-slate-400">{subLabel}</span>}
   </button>
 );

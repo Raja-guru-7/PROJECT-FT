@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Transaction, User } from '../types';
-import { ArrowRight, Clock, TrendingUp, PlusCircle, CheckCircle2, ShieldCheck, Loader2, Cpu, Lock, AlertCircle } from 'lucide-react';
+import { ArrowRight, Clock, TrendingUp, PlusCircle, CheckCircle2, ShieldCheck, Loader2, Cpu, Lock, AlertCircle, MessageSquare, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+import PeerShareChat from '../components/PeerShareChat';
 
 interface DashboardProps {
   role: 'RENTER' | 'OWNER';
@@ -18,11 +20,12 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
   const [loading, setLoading] = useState(true);
   const [savedAssets, setSavedAssets] = useState<any[]>([]);
 
+  const [activeChatTx, setActiveChatTx] = useState<{ id: string, title: string } | null>(null);
+
   useEffect(() => {
     setTab(role === 'OWNER' ? 'lending' : 'renting');
   }, [role]);
 
-  // Auto-redirect for Owner if OTP is verified and waiting for scan
   useEffect(() => {
     if (role !== 'OWNER') return;
     const pollForHandoverReady = async () => {
@@ -50,11 +53,10 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
         api.getSavedAssets().catch(() => [])
       ]);
 
-      // Combine and deduplicate
       const combined = [...rData, ...oData];
       const unique = Array.from(new Map(combined.map(item => [item._id || item.id, item])).values());
 
-      setAllTxs(unique);
+      setAllTxs(unique as any);
       if (userData) setCurrentUser(userData);
       setSavedAssets(savedAssetsData);
     } catch (err) {
@@ -79,27 +81,18 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
     return () => window.removeEventListener('user-updated', handler as EventListener);
   }, []);
 
-  // Securely get the current user ID to avoid any mismatch
   const storedUserRaw = localStorage.getItem('user');
   const storedUser = storedUserRaw ? (() => { try { return JSON.parse(storedUserRaw); } catch { return null; } })() : null;
   const currentUserId = String(currentUser?._id || currentUser?.id || storedUser?._id || storedUser?.id || localStorage.getItem('userId'));
 
-  // ✅ 100% BULLETPROOF LOGIC: Explicitly checking Owner ID vs Renter ID
   const filteredTransactions = allTxs.filter((tx: any) => {
-    // Hide completed/cancelled transactions from active dashboard
     if (['COMPLETED', 'CANCELLED', 'REJECTED'].includes(tx.status)) return false;
 
     const oId = String(tx?.ownerId?._id || tx?.ownerId?.id || tx?.ownerId);
     const rId = String(tx?.renterId?._id || tx?.renterId?.id || tx?.renterId);
 
-    if (tab === 'renting') {
-      // Allocated tab -> ONLY show items where I am the Renter
-      return rId === currentUserId;
-    }
-    if (tab === 'lending') {
-      // Deployed tab -> ONLY show items where I am the Owner
-      return oId === currentUserId;
-    }
+    if (tab === 'renting') return rId === currentUserId;
+    if (tab === 'lending') return oId === currentUserId;
     return false;
   });
 
@@ -131,21 +124,25 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
             <AnimatePresence mode="popLayout">
               {loading ? (
                 <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center py-20 sm:py-32">
-                  {/* ERROR FIXED HERE: duplicate className removed */}
                   <Loader2 className="animate-spin text-slate-400 sm:w-10 sm:h-10" size={32} />
                 </motion.div>
               ) : filteredTransactions.length > 0 ? (
                 filteredTransactions.map((tx: any, i: number) => {
                   const isOwner = tab === 'lending';
-
                   const needsHandover = ['REQUESTED', 'PENDING_OTP', 'HANDOVER_IN_PROGRESS', 'OTP_VERIFIED', 'IN_PROGRESS'].includes(tx.status);
                   const needsReturn = ['RETURN_INITIATED', 'RETURN_IN_PROGRESS'].includes(tx.status);
                   const isReadyForReturn = ['ACTIVE', 'HANDOVER_COMPLETED', 'PICKED_UP'].includes(tx.status);
 
                   return (
-                    <motion.div key={tx.id || tx._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <motion.div key={tx._id || tx.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                       <div
-                        onClick={() => navigate(`/handover/${tx.id || tx._id}`)}
+                        onClick={() => {
+                          if (tx.status === 'ACTIVE' || tx.status.includes('RETURN') || tx.status === 'COMPLETED') {
+                            navigate(`/return/${tx._id || tx.id}`);
+                          } else {
+                            navigate(`/handover/${tx._id || tx.id}`);
+                          }
+                        }}
                         className="p-5 sm:p-6 md:p-8 bg-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -171,43 +168,37 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
 
                           <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                             {needsReturn ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx.id || tx._id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/return/${tx._id || tx.id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
                                 {isOwner ? 'Verify Return' : 'Return Tracking'}
                               </button>
                             ) : needsHandover ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx.id || tx._id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx._id || tx.id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
                                 {isOwner ? 'Manage Handover' : 'Complete Handover'}
                               </button>
                             ) : isReadyForReturn ? (
                               <button onClick={async (e) => {
                                 e.stopPropagation();
                                 try {
-                                  await api.initiateReturn(tx.id || tx._id);
-                                  navigate(`/handover/${tx.id || tx._id}?type=return`);
+                                  await api.initiateReturn(tx._id || tx.id);
+                                  navigate(`/return/${tx._id || tx.id}`);
                                 } catch (err) { alert('Failed to initiate return.'); }
                               }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
                                 Initiate Return
                               </button>
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx.id || tx._id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-slate-100 text-slate-700 rounded-full text-xs sm:text-sm font-medium hover:bg-slate-200 transition-colors text-center">
+                              <button onClick={(e) => {
+                                e.stopPropagation();
+                                if (tx.status === 'ACTIVE' || tx.status.includes('RETURN') || tx.status === 'COMPLETED') {
+                                  navigate(`/return/${tx._id || tx.id}`);
+                                } else {
+                                  navigate(`/handover/${tx._id || tx.id}`);
+                                }
+                              }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-slate-100 text-slate-700 rounded-full text-xs sm:text-sm font-medium hover:bg-slate-200 transition-colors text-center">
                                 Details
                               </button>
                             )}
                           </div>
                         </div>
-
-                        {needsHandover && isOwner && !(tx as any).ownerVideoUrl && (
-                          <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-[1rem] sm:rounded-2xl">
-                            <p className="text-slate-800 text-xs sm:text-sm font-medium mb-2 sm:mb-3 flex items-center gap-1.5 sm:gap-2">
-                              <AlertCircle size={14} className="sm:w-4 sm:h-4" /> Baseline Scan Required
-                            </p>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx.id || tx._id}`); }}
-                              className="w-full bg-black text-white font-medium py-2 sm:py-3 rounded-full hover:bg-slate-800 transition-colors text-xs sm:text-sm">
-                              Open Scanner
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </motion.div>
                   );
@@ -235,12 +226,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
           </div>
 
           <div className="space-y-5 sm:space-y-6 mt-2 lg:mt-0">
-            {/* Reputation Section */}
             <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-              <div
-                onClick={() => navigate('/trust')}
-                className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group"
-              >
+              <div onClick={() => navigate('/trust')} className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md hover:border-slate-200 transition-all group">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <div>
                     <h3 className="text-xs sm:text-sm font-semibold text-slate-800 mb-0.5 sm:mb-1">Reputation</h3>
@@ -263,32 +250,36 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
               </div>
             </motion.div>
 
-            {/* Watchlist Section */}
-            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
               <div className="bg-white p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <div>
-                    <h3 className="text-xs sm:text-sm font-semibold text-slate-800 mb-0.5 sm:mb-1">Watchlist</h3>
-                    <p className="text-[10px] sm:text-xs text-slate-500">Saved items</p>
+                    <h3 className="text-xs sm:text-sm font-semibold text-slate-800 mb-0.5 sm:mb-1">Messages</h3>
+                    <p className="text-[10px] sm:text-xs text-slate-500">Active transaction chats</p>
                   </div>
-                  <button onClick={() => navigate('/explore')} className="text-[10px] sm:text-xs font-semibold text-black hover:underline">Explore</button>
+                  <MessageSquare size={16} className="text-slate-400" />
                 </div>
-
-                <div className="space-y-2 sm:space-y-3">
-                  {savedAssets.length > 0 ? (
-                    savedAssets.slice(0, 3).map((item) => (
-                      <div key={item.id} onClick={() => navigate(`/item/${item.id}`)} className="flex items-center gap-2.5 sm:gap-3 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer group border border-transparent hover:border-slate-100">
-                        <img src={item.imageUrl} alt={item.title} className="w-10 h-10 sm:w-12 sm:h-12 rounded-[0.5rem] sm:rounded-xl object-cover bg-slate-100 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm font-medium text-slate-800 truncate">{item.title}</p>
-                          <p className="text-[10px] sm:text-xs text-slate-500 truncate">₹{item.pricePerDay}/day</p>
+                <div className="space-y-2">
+                  {filteredTransactions.length > 0 ? (
+                    filteredTransactions.map((tx: any) => (
+                      <div
+                        key={tx._id || tx.id}
+                        onClick={() => setActiveChatTx({ id: tx._id || tx.id, title: tx.itemTitle })}
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-transparent hover:border-slate-100 group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                          <span className="text-sm">💬</span>
                         </div>
-                        <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5 text-slate-300 group-hover:text-black transition-all group-hover:translate-x-1 shrink-0 mr-1" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm font-medium text-slate-800 truncate group-hover:text-black transition-colors">{tx.itemTitle}</p>
+                          <p className="text-[10px] sm:text-xs text-slate-500 truncate">Tap to open chat</p>
+                        </div>
+                        <ChevronRight size={14} className="text-slate-300 group-hover:text-black transition-colors" />
                       </div>
                     ))
                   ) : (
                     <div className="text-center py-4 sm:py-6">
-                      <p className="text-[10px] sm:text-xs text-slate-400">Watchlist is empty.</p>
+                      <p className="text-[10px] sm:text-xs text-slate-400">No active chats.</p>
                     </div>
                   )}
                 </div>
@@ -297,6 +288,33 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {activeChatTx && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-[130px] left-[5%] right-[5%] w-[90%] h-[60vh] max-h-[450px] md:right-auto md:left-8 lg:left-12 md:bottom-24 md:w-[350px] md:h-[450px] z-[9999] shadow-2xl rounded-[2rem] overflow-hidden bg-white border border-slate-100"
+          >
+            <PeerShareChat
+              transactionId={activeChatTx.id}
+              currentUser={currentUser?.name || 'User'}
+              isHandoverMode={false}
+              chatTitle={activeChatTx.title}
+              onClose={() => setActiveChatTx(null)}
+              receiverId={(() => {
+                const tx: any = allTxs.find((t: any) => (t._id || t.id) === activeChatTx.id);
+                if (!tx) return undefined;
+                const ownerIdStr = String(tx.ownerId?._id || tx.ownerId?.id || tx.ownerId);
+                const isOwner = ownerIdStr === currentUserId;
+                const receiver = isOwner ? tx.renterId : tx.ownerId;
+                return typeof receiver === 'object' ? (receiver?._id || receiver?.id || '') : String(receiver);
+              })()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

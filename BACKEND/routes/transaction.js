@@ -7,236 +7,118 @@ const { uploadVideo } = require("../cloudinary");
 router.post("/create", auth, async (req, res) => {
   try {
     const { productId, renterId, lenderId, totalPrice, startDate, endDate } = req.body;
-
-    if (!productId || !lenderId || !renterId || totalPrice === undefined) {
-      return res.status(400).json({ msg: "Missing required fields: productId, lenderId, renterId, or totalPrice" });
-    }
+    if (!productId || !lenderId || !renterId || totalPrice === undefined) return res.status(400).json({ msg: "Missing fields" });
 
     const mongoose = require('mongoose');
-    if (!mongoose.Types.ObjectId.isValid(productId) || !mongoose.Types.ObjectId.isValid(lenderId)) {
-      return res.status(400).json({ msg: "Invalid or outdated ID references detected. Please refresh the page." });
-    }
+    if (!mongoose.Types.ObjectId.isValid(productId) || !mongoose.Types.ObjectId.isValid(lenderId)) return res.status(400).json({ msg: "Invalid ID" });
 
     const Product = require('../models/product');
     const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ msg: "Product not found in database (may have been cleared)" });
-    }
+    if (!product) return res.status(404).json({ msg: "Product not found" });
+    if (product.owner.toString() === req.user.id) return res.status(400).json({ msg: "You cannot rent your own item" });
 
-    if (product.owner.toString() === req.user.id) {
-      return res.status(400).json({ msg: "You cannot rent your own item" });
-    }
-
-    let myPendingTx = await Transaction.findOne({
-      itemId: productId,
-      renterId: req.user.id,
-      status: "PENDING_HANDOVER"
-    });
-
-    if (myPendingTx) {
-      return res.status(200).json({ transaction: myPendingTx });
-    }
-
-    const activeTransaction = await Transaction.findOne({
-      itemId: productId,
-      status: { $in: ["HANDOVER_IN_PROGRESS", "ACTIVE", "RETURN_IN_PROGRESS"] }
-    });
-
-    if (activeTransaction) {
-      return res.status(400).json({ msg: "Item is currently locked in an active transaction" });
-    }
+    const activeTransaction = await Transaction.findOne({ itemId: productId, status: { $in: ["HANDOVER_IN_PROGRESS", "ACTIVE", "RETURN_IN_PROGRESS"] } });
+    if (activeTransaction) return res.status(400).json({ msg: "Item is currently locked" });
 
     const handoverOTP = Math.floor(1000 + Math.random() * 9000).toString();
-
     const transaction = new Transaction({
-      itemId: productId,
-      itemTitle: product.title,
-      renterId: req.user.id,
-      ownerId: lenderId,
-      startDate,
-      endDate,
-      totalAmount: totalPrice,
-      handoverOTP,
-      otpCode: handoverOTP,
-      status: "PENDING_OTP"
+      itemId: productId, itemTitle: product.title, renterId: req.user.id, ownerId: lenderId,
+      startDate, endDate, totalAmount: totalPrice, handoverOTP, otpCode: handoverOTP, status: "PENDING_OTP"
     });
-
     await transaction.save();
 
     try {
       const User = require('../models/User');
       const { sendOtpEmail } = require('../utils/mailer');
       const owner = await User.findById(lenderId);
-      if (owner && owner.email) {
-        await sendOtpEmail(owner.email, owner.name, handoverOTP, product.title);
-      }
-    } catch (emailErr) {
-      console.warn("Email dispatch failed (non-fatal):", emailErr.message);
-    }
-
+      if (owner && owner.email) await sendOtpEmail(owner.email, owner.name, handoverOTP, product.title);
+    } catch (err) { }
     res.status(201).json(transaction);
-  } catch (error) {
-    console.log("Transaction Error:", error);
-    res.status(500).json({ msg: "Server Error", error: error.message });
-  }
+  } catch (error) { res.status(500).json({ msg: "Server Error", error: error.message }); }
 });
 
 router.get("/my", auth, async (req, res) => {
   try {
-    const transactions = await Transaction.find({
-      $or: [{ renterId: req.user.id }, { ownerId: req.user.id }]
-    }).sort({ createdAt: -1 });
+    const transactions = await Transaction.find({ $or: [{ renterId: req.user.id }, { ownerId: req.user.id }] }).sort({ createdAt: -1 });
     res.json(transactions);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
+  } catch (err) { res.status(500).send("Server Error"); }
 });
 
 router.get("/:id", auth, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
+    if (!transaction) return res.status(404).json({ msg: "Not found" });
     res.json(transaction);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
+  } catch (err) { res.status(500).send("Server Error"); }
 });
 
 router.post("/:id/verify-otp", auth, async (req, res) => {
   try {
     const { otp } = req.body;
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
-
-    console.log("===== HANDOVER OTP VERIFICATION =====");
-    console.log("Transaction Renter ID:", transaction.renterId.toString());
-    console.log("Logged-in User ID:   ", req.user.id);
-    console.log("=====================================");
-
-    if (transaction.renterId.toString() !== req.user.id) {
-      return res.status(403).json({ msg: "Only the renter can verify handover OTP" });
-    }
+    if (transaction.renterId.toString() !== req.user.id) return res.status(403).json({ msg: "Only renter can verify" });
 
     if (transaction.otpCode === otp) {
-      // ✅ FIX: Directly set HANDOVER_IN_PROGRESS (skip OTP_VERIFIED intermediate)
       transaction.status = "HANDOVER_IN_PROGRESS";
       await transaction.save();
 
       const Product = require('../models/product');
-      await Product.findByIdAndUpdate(transaction.itemId, {
-        isAvailable: false,
-        status: 'rented',
-        currentTransaction: transaction._id
-      });
-
-      // ✅ Socket event to owner
-      const io = req.app.get('io');
-      if (io) {
-        io.to(transaction.ownerId.toString()).emit('handover-ready', {
-          transactionId: transaction._id,
-          status: 'HANDOVER_IN_PROGRESS',
-          message: 'ACTION REQUIRED: RECORD SCAN'
-        });
-        console.log(`🔔 Socket event sent to Owner ${transaction.ownerId.toString()}: handover-ready`);
-      }
-
-      res.json({ success: true, msg: "OTP Verified! Handover protocol initiated." });
+      await Product.findByIdAndUpdate(transaction.itemId, { isAvailable: false, status: 'rented', currentTransaction: transaction._id });
+      res.json({ success: true, msg: "OTP Verified!" });
     } else {
-      res.status(400).json({ success: false, msg: "Invalid Security Cipher" });
+      res.status(400).json({ success: false, msg: "Invalid Code" });
     }
-  } catch (err) {
-    console.error("OTP Verification Error:", err.message);
-    res.status(500).send("Server Error");
-  }
+  } catch (err) { res.status(500).send("Server Error"); }
 });
 
 router.post("/:id/upload-proof", auth, uploadVideo.single("video"), async (req, res) => {
   try {
     const { type } = req.body;
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
-
     const videoUrl = req.file ? req.file.path : req.body.videoUrl;
+
     if (type === "OWNER") transaction.ownerVideoUrl = videoUrl;
     if (type === "RENTER") transaction.renterVideoUrl = videoUrl;
-
-    if (transaction.ownerVideoUrl && transaction.renterVideoUrl) {
-      transaction.status = "ACTIVE";
-    }
-
     await transaction.save();
-    res.json({ msg: "Telemetry proof uploaded successfully", transaction });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
-});
 
-router.post("/upload-proof-file", auth, uploadVideo.single("video"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ msg: "No file detected" });
-    res.json({ url: req.file.path, msg: "Video synchronized with Cloudinary" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
+    res.json({ msg: "Uploaded", transaction });
+  } catch (err) { res.status(500).send("Server Error"); }
 });
 
 router.post("/:id/complete", auth, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
-
     transaction.status = "ACTIVE";
     await transaction.save();
-    res.json({ msg: "Handover protocol completed", transaction });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
+    res.json({ msg: "Completed", transaction });
+  } catch (err) { res.status(500).send("Server Error"); }
 });
 
-router.post("/:id/request-return", auth, async (req, res) => {
+router.post("/:id/verify-return-otp", auth, async (req, res) => {
   try {
+    const { otp } = req.body;
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
+    if (transaction.ownerId.toString() !== req.user.id) return res.status(403).json({ msg: "Only owner can verify" });
 
-    if (transaction.renterId.toString() !== req.user.id) {
-      return res.status(403).json({ msg: "Only renter can initiate return protocol" });
+    if (transaction.returnOtpCode === otp) {
+      transaction.status = "RETURN_IN_PROGRESS";
+      await transaction.save();
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ success: false, msg: "Invalid OTP" });
     }
-
-    const returnOtpCode = Math.floor(1000 + Math.random() * 9000).toString();
-    transaction.returnOtpCode = returnOtpCode;
-    transaction.status = "RETURN_IN_PROGRESS";
-    await transaction.save();
-
-    try {
-      const User = require('../models/User');
-      const { sendOtpEmail } = require('../utils/mailer');
-      const owner = await User.findById(transaction.ownerId);
-      if (owner && owner.email) {
-        await sendOtpEmail(owner.email, owner.name, returnOtpCode, `${transaction.itemTitle} (RETURN)`);
-      }
-    } catch (emailErr) {
-      console.warn("Return Email failed:", emailErr.message);
-    }
-
-    res.json({ success: true, msg: "Return OTP generated and sent", returnOtpCode });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ success: false, msg: "Server Error" });
-  }
+  } catch (err) { res.status(500).send("Server Error"); }
 });
 
+// 🚀 BULLETPROOF RETURN INITIATE ROUTE (FIXED)
 router.patch("/:id/initiate-return", auth, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
 
-    if (transaction.renterId.toString() !== req.user.id) {
-      return res.status(403).json({ msg: "Only renter can initiate return protocol" });
+    // Type-safe check to ensure ONLY the RENTER can initiate the return
+    if (transaction.renterId.toString() !== req.user.id.toString()) {
+      console.log("❌ Blocked: User is not the true renter!");
+      return res.status(403).json({ msg: "Only renter can initiate return" });
     }
 
     const returnOtpCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -247,74 +129,42 @@ router.patch("/:id/initiate-return", auth, async (req, res) => {
     try {
       const User = require('../models/User');
       const { sendOtpEmail } = require('../utils/mailer');
-      const owner = await User.findById(transaction.ownerId);
-      if (owner && owner.email) {
-        await sendOtpEmail(owner.email, owner.name, returnOtpCode, `${transaction.itemTitle} (RETURN)`);
+      const renter = await User.findById(transaction.renterId);
+
+      if (renter && renter.email) {
+        await sendOtpEmail(renter.email, renter.name, returnOtpCode, transaction.itemTitle);
+        console.log(`✅ Return OTP Mail Sent Successfully to Renter: ${renter.email}`);
+      } else {
+        console.log("⚠️ Renter email not found in DB!");
       }
-    } catch (emailErr) {
-      console.warn("Return Email failed:", emailErr.message);
+    } catch (mailErr) {
+      console.error("❌ Failed to send Return OTP mail:", mailErr);
     }
 
-    res.json({ success: true, msg: "Return OTP generated and sent", returnOtpCode });
+    res.json({ success: true, returnOtpCode });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ success: false, msg: "Server Error" });
+    console.error("🔥 Server Error in initiate-return:", err);
+    res.status(500).json({ success: false });
   }
 });
 
 router.post("/:id/complete-return", auth, async (req, res) => {
   try {
-    const { otp } = req.body;
     const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
+    if (transaction.ownerId.toString() !== req.user.id) return res.status(403).json({ msg: "Only owner" });
 
-    if (transaction.ownerId.toString() !== req.user.id) {
-      return res.status(403).json({ msg: "Only owner can confirm return" });
-    }
-
-    if (transaction.returnOtpCode === otp) {
-      transaction.status = "COMPLETED";
-      await transaction.save();
-
-      const Product = require('../models/product');
-      await Product.findByIdAndUpdate(transaction.itemId, {
-        isAvailable: true,
-        status: 'available',
-        currentTransaction: null
-      });
-
-      const User = require('../models/User');
-      await User.findByIdAndUpdate(transaction.renterId, { $inc: { trustScore: 5 } });
-      await User.findByIdAndUpdate(transaction.ownerId, { $inc: { trustScore: 5 } });
-
-      res.json({ success: true, msg: "Return finalized and trust scores updated" });
-    } else {
-      res.status(400).json({ success: false, msg: "Invalid return OTP" });
-    }
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ success: false, msg: "Server Error" });
-  }
-});
-
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) return res.status(404).json({ msg: "Transaction not found" });
+    transaction.status = "COMPLETED";
+    await transaction.save();
 
     const Product = require('../models/product');
-    await Product.findByIdAndUpdate(transaction.itemId, {
-      status: 'available',
-      isAvailable: true,
-      currentTransaction: null
-    });
+    await Product.findByIdAndUpdate(transaction.itemId, { isAvailable: true, status: 'available', currentTransaction: null });
 
-    await Transaction.findByIdAndDelete(req.params.id);
-    res.json({ msg: "Transaction deleted and product status reset" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
+    const User = require('../models/User');
+    await User.findByIdAndUpdate(transaction.renterId, { $inc: { trustScore: 5 } });
+    await User.findByIdAndUpdate(transaction.ownerId, { $inc: { trustScore: 5 } });
+
+    res.json({ success: true, msg: "Return finalized" });
+  } catch (err) { res.status(500).json({ success: false }); }
 });
 
 module.exports = router;

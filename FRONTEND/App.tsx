@@ -106,7 +106,9 @@ const AppContent: React.FC = () => {
               <Route path="/trust" element={isAuthenticated ? <TrustScore /> : <Navigate to="/" replace />} />
               <Route path="/proof" element={isAuthenticated ? <ProofOfCondition /> : <Navigate to="/" replace />} />
               <Route path="/user/:userId" element={isAuthenticated ? <UserProfile /> : <Navigate to="/" replace />} />
-              <Route path="/return-handover/:txId" element={isAuthenticated ? <ReturnHandover /> : <Navigate to="/" replace />} />
+
+              {/* 👇 THE FIX IS HERE: Changed /return-handover/:txId to /return/:txId 👇 */}
+              <Route path="/return/:txId" element={isAuthenticated ? <ReturnHandover /> : <Navigate to="/" replace />} />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -40,21 +40,6 @@ export const ActivityLog: React.FC = () => {
     fetchTransactions();
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const txs = await api.getTransactions('OWNER');
-        const handoverTx = txs.find((tx: any) =>
-          (tx.status === 'HANDOVER_IN_PROGRESS' || tx.status === 'OTP_VERIFIED') && !tx.ownerVideoUrl
-        );
-        if (handoverTx) {
-          navigate(`/handover/${handoverTx.id || handoverTx._id}`);
-        }
-      } catch (err) { }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [navigate]);
-
   const filteredLogs = useMemo(() => transactions.filter(tx =>
     tx.itemTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
     tx.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -113,45 +98,58 @@ export const ActivityLog: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLogs.length > 0 ? filteredLogs.map(tx => (
-                    <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-4 sm:px-6 py-4 sm:py-5 cursor-pointer" onClick={() => {
-                        if (tx.status === 'OTP_VERIFIED' || tx.status === 'HANDOVER_IN_PROGRESS') {
-                          navigate(`/handover/${tx._id || tx.id}`);
-                        }
-                      }}>
-                        <p className="font-semibold text-sm sm:text-base text-slate-800 mb-1 group-hover:text-black transition-colors">{tx.itemTitle}</p>
-                        <p className="text-[10px] sm:text-xs font-mono text-slate-400 group-hover:text-slate-500 transition-colors">{tx.id}</p>
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 sm:py-5">
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <ProofButton icon={<Video size={14} />} label="Dispatch" hasVideo={!!(tx as any).ownerVideoUrl}
-                            onClick={() => { const u = (tx as any).ownerVideoUrl; if (u) setVideoModal({ url: u, label: `Dispatch — ${tx.itemTitle}` }); }} />
-                          <ProofButton icon={<Video size={14} />} label="Receipt" hasVideo={!!(tx as any).renterVideoUrl}
-                            onClick={() => { const u = (tx as any).renterVideoUrl; if (u) setVideoModal({ url: u, label: `Receipt — ${tx.itemTitle}` }); }} />
+                  {/* 👇 FIX: Added proper parentheses around the map logic to fix the ts(1005) error 👇 */}
+                  {filteredLogs.length > 0 ? (
+                    filteredLogs.map(tx => {
+                      const currentUserIdStr = String(currentUser?._id || currentUser?.id);
+                      const ownerIdStr = String((tx as any).ownerId?._id || (tx as any).ownerId);
+                      const isOwnerNow = ownerIdStr === currentUserIdStr;
+
+                      return (
+                        <tr key={tx.id || tx._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <td className="px-4 sm:px-6 py-4 sm:py-5">
+                            <p className="font-semibold text-sm sm:text-base text-slate-800 mb-1">{tx.itemTitle}</p>
+                            <p className="text-[10px] sm:text-xs font-mono text-slate-400">{tx.id || tx._id}</p>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 sm:py-5">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <ProofButton icon={<Video size={14} />} label="Handover Proof" hasVideo={!!(tx as any).renterVideoUrl}
+                                onClick={() => { const u = (tx as any).renterVideoUrl; if (u) setVideoModal({ url: u, label: `Handover — ${tx.itemTitle}` }); }} />
+                              <ProofButton icon={<Video size={14} />} label="Return Proof" hasVideo={!!(tx as any).ownerVideoUrl}
+                                onClick={() => { const u = (tx as any).ownerVideoUrl; if (u) setVideoModal({ url: u, label: `Return — ${tx.itemTitle}` }); }} />
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 sm:py-5">
+                            {getStatusBadge(tx.status)}
+
+                            {tx.status === 'HANDOVER_IN_PROGRESS' && !isOwnerNow && (
+                              <button onClick={() => navigate(`/handover/${tx.id || tx._id}`)} className="mt-3 block px-3 sm:px-4 py-1.5 bg-black text-white text-[10px] sm:text-[11px] uppercase tracking-wide font-bold rounded-full hover:bg-slate-800 shadow-sm">
+                                Complete Handover
+                              </button>
+                            )}
+                            {tx.status === 'RETURN_IN_PROGRESS' && isOwnerNow && (
+                              <button onClick={() => navigate(`/return/${tx.id || tx._id}`)} className="mt-3 block px-3 sm:px-4 py-1.5 bg-black text-white text-[10px] sm:text-[11px] uppercase tracking-wide font-bold rounded-full hover:bg-slate-800 shadow-sm">
+                                Complete Return
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 sm:py-5 text-right">
+                            <p className="font-bold text-slate-800 text-sm sm:text-base">₹{tx.totalAmount}</p>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-16 sm:py-20 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <Search className="text-slate-300 mb-3" size={40} />
+                          <p className="font-medium text-slate-500 text-sm sm:text-base">
+                            {searchQuery ? 'No matching activity found.' : 'No transactions yet — start renting!'}
+                          </p>
                         </div>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 sm:py-5">
-                        {getStatusBadge(tx.status)}
-                        {(tx.status === 'HANDOVER_IN_PROGRESS' || tx.status === 'OTP_VERIFIED') && !(tx as any).ownerVideoUrl && String(currentUser?._id || currentUser?.id) === String((tx as any).ownerId?._id || (tx as any).ownerId) && (
-                          <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx.id || tx._id}`); }} className="mt-3 block px-3 sm:px-4 py-1.5 bg-black text-white text-[10px] sm:text-[11px] uppercase tracking-wide font-bold rounded-full hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap">
-                            Complete Video Scan
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 sm:py-5 text-right">
-                        <p className="font-bold text-slate-800 text-sm sm:text-base">₹{tx.totalAmount}</p>
-                      </td>
                     </tr>
-                  )) : (
-                    <tr><td colSpan={4} className="px-6 py-16 sm:py-20 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <Search className="text-slate-300 mb-3" size={40} />
-                        <p className="font-medium text-slate-500 text-sm sm:text-base">
-                          {searchQuery ? 'No matching activity found.' : 'No transactions yet — start renting!'}
-                        </p>
-                      </div>
-                    </td></tr>
                   )}
                 </tbody>
               </table>
@@ -163,17 +161,14 @@ export const ActivityLog: React.FC = () => {
   );
 };
 
-// ✅ FIX: Used Inline Styles to completely prevent Purple/Blue override bugs
 const getStatusStyles = (status: string) => {
-  let bg = '#fffbeb'; let text = '#b45309'; let border = '#fde68a'; let dot = '#f59e0b'; // Default Amber
-  if (status === 'ACTIVE' || status === 'HANDOVER_COMPLETED') {
-    bg = '#f0fdf4'; text = '#15803d'; border = '#bbf7d0'; dot = '#22c55e'; // Green
-  } else if (status === 'COMPLETED') {
-    bg = '#f8fafc'; text = '#334155'; border = '#e2e8f0'; dot = '#94a3b8'; // Slate
+  let bg = '#fffbeb'; let text = '#b45309'; let border = '#fde68a'; let dot = '#f59e0b';
+  if (status === 'ACTIVE' || status === 'COMPLETED') {
+    bg = '#f0fdf4'; text = '#15803d'; border = '#bbf7d0'; dot = '#22c55e';
   } else if (status === 'OTP_VERIFIED' || status === 'HANDOVER_IN_PROGRESS' || status === 'RETURN_IN_PROGRESS' || status === 'RETURN_INITIATED') {
-    bg = '#0f172a'; text = '#ffffff'; border = '#0f172a'; dot = '#ffffff'; // Black
+    bg = '#0f172a'; text = '#ffffff'; border = '#0f172a'; dot = '#ffffff';
   } else if (status === 'REQUESTED' || status === 'PENDING_OTP') {
-    bg = '#f8fafc'; text = '#475569'; border = '#e2e8f0'; dot = '#94a3b8'; // Light Slate
+    bg = '#f8fafc'; text = '#475569'; border = '#e2e8f0'; dot = '#94a3b8';
   }
   return { bg, text, border, dot };
 };

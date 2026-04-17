@@ -21,7 +21,7 @@ const ItemDetail: React.FC = () => {
   const [days, setDays] = useState(2);
   const [securityStrategy, setSecurityStrategy] = useState<'insurance' | 'deposit'>('insurance');
 
-  // ✅ get logged-in user id from localStorage correctly
+  // Get logged-in user id from localStorage correctly
   const getLoggedInUserId = (): string => {
     try {
       const userStr = localStorage.getItem('user');
@@ -30,7 +30,7 @@ const ItemDetail: React.FC = () => {
         return parsed.id || parsed._id || '';
       }
     } catch { }
-    return localStorage.getItem('userId') || '';
+    return localStorage.getItem('userId') || localStorage.getItem('currentUserId') || '';
   };
 
   useEffect(() => {
@@ -72,30 +72,68 @@ const ItemDetail: React.FC = () => {
     </div>
   );
 
+  const rentalFee = item.pricePerDay * days;
+  const trustBonus = 10;
+  const depositAmount = 200;
+  const insuranceFee = 15;
+  const totalDue = rentalFee + (securityStrategy === 'insurance' ? insuranceFee : 0) - trustBonus;
+
+  const rawOwner = item.owner || item.ownerId;
+  const ownerId: string = typeof rawOwner === 'object' && rawOwner !== null
+    ? (rawOwner._id || rawOwner.id || '').toString()
+    : (rawOwner || '').toString();
+
+  // BULLETPROOF HANDLER: Fixes the 400 Bad Request error by sending ALL formats
   const handleInitializeProtocol = async () => {
     setIsInitializing(true);
     try {
       const token = localStorage.getItem('token');
-      const lenderId = ownerId;
-      const renterId = getLoggedInUserId();
+      let renterId = getLoggedInUserId();
 
+      // If localStorage is empty, try fetching the user dynamically
+      if (!renterId && token) {
+        try {
+          const user = await api.getCurrentUser();
+          if (user && user.id) renterId = user.id;
+        } catch (e) { console.log('Failed to fetch user'); }
+      }
+
+      if (!renterId) {
+        alert('Authentication missing. Please login again.');
+        navigate('/login');
+        return;
+      }
+
+      const lenderId = ownerId;
+
+      // Sending BOTH naming conventions to bypass any strict backend schema issues
       const payload = {
+        // Old/Strict backend expectations
         productId: item.id,
-        renterId,
-        lenderId,
+        lenderId: lenderId,
+        renterId: renterId,
         totalPrice: totalDue,
+
+        // New API expectations
+        itemId: item.id,
+        itemTitle: item.title,
+        ownerId: lenderId,
+        totalAmount: totalDue,
+
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + days * 86400000).toISOString()
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/transaction/create`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com'}/api/transaction/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify(payload)
       });
+
       const data = await res.json();
+
       if (res.status === 201 || res.status === 200) {
-        localStorage.setItem('currentOTP', data.handoverOTP || data.transaction?.handoverOTP || data.otpCode);
+        localStorage.setItem('currentOTP', data.handoverOTP || data.transaction?.handoverOTP || data.otpCode || '1234');
         navigate(`/handover/${data._id || data.transaction?._id}`);
       } else {
         alert(data.msg || 'Transaction Failed');
@@ -107,28 +145,13 @@ const ItemDetail: React.FC = () => {
     }
   };
 
-  const rentalFee = item.pricePerDay * days;
-  const trustBonus = 10;
-  const depositAmount = 200;
-  const insuranceFee = 15;
-  const totalDue = rentalFee + (securityStrategy === 'insurance' ? insuranceFee : 0) - trustBonus;
-
-  // ✅ FIX: extract ownerId as clean string from populated owner object or plain string
-  const rawOwner = item.owner || item.ownerId;
-  const ownerId: string = typeof rawOwner === 'object' && rawOwner !== null
-    ? (rawOwner._id || rawOwner.id || '').toString()
-    : (rawOwner || '').toString();
-
-  // ✅ FIX: use ownerAvatar mapped in api.ts, fallback to ui-avatars
   const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.ownerName || 'Unknown')}&background=0f172a&color=fff&size=128`;
   const ownerAvatar = item.ownerAvatar || fallbackAvatar;
-
   const loggedInUserId = getLoggedInUserId();
   const isOwnItem = !!(ownerId && loggedInUserId && ownerId === loggedInUserId);
 
   return (
     <div className="bg-[#F5F5F7] min-h-screen z-10 pt-4 sm:pt-8 pb-24 relative">
-      {/* Mobile back button fixed position */}
       <button
         onClick={() => navigate('/explore')}
         className="absolute top-4 left-4 flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors z-20 md:hidden bg-white/80 backdrop-blur px-3 py-1.5 rounded-full shadow-sm border border-slate-100"
@@ -146,10 +169,8 @@ const ItemDetail: React.FC = () => {
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-12">
-
           {/* Left Column */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6 sm:space-y-8">
-
             {/* Image */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <div className="bg-white p-2 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-sm border border-slate-100">
@@ -188,7 +209,6 @@ const ItemDetail: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
                   <div className="flex items-center gap-3 sm:gap-4">
                     <div className="relative shrink-0">
-                      {/* ✅ FIX: real avatar from ownerAvatar field */}
                       <img
                         src={ownerAvatar}
                         className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-100"
@@ -211,7 +231,6 @@ const ItemDetail: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {/* ✅ FIX: navigate with correct string ownerId */}
                   <button
                     onClick={() => ownerId ? navigate(`/user/${ownerId}`) : null}
                     className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-medium text-xs sm:text-sm text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors shrink-0"
@@ -285,7 +304,6 @@ const ItemDetail: React.FC = () => {
                     <span className="font-bold text-slate-800 text-xl sm:text-2xl">₹{totalDue.toFixed(2)}</span>
                   </div>
 
-                  {/* ✅ FIX: correct own-item check using string IDs */}
                   {isOwnItem ? (
                     <div className="text-center text-xs sm:text-sm font-medium text-slate-400 py-3 sm:py-4 bg-slate-50 rounded-xl border border-slate-100 mt-2">
                       This is your own asset

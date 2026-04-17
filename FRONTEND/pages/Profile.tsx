@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, ArrowRight, Loader2, CreditCard, X, Camera, Smartphone } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, ArrowRight, Loader2, CreditCard, X, Camera, Smartphone, Edit2 } from 'lucide-react';
 import { api } from '../services/api';
 import { User, Transaction } from '../types';
 
@@ -27,9 +27,9 @@ const Profile: React.FC = () => {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [showLivenessModal, setShowLivenessModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
-  
+
   // 4-digit OTP state
-  const [otp, setOtp] = useState(['', '', '', '']); 
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [otpSent, setOtpSent] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [livenessStep, setLivenessStep] = useState<'idle' | 'scanning' | 'complete'>('idle');
@@ -58,7 +58,7 @@ const Profile: React.FC = () => {
     if (!token) { alert('Authentication required'); setSavingName(false); return; }
     try {
       const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-      
+
       // Use the newly uploaded image, OR keep the existing one (but strip the bad dicebear ones)
       let finalAvatar = newAvatarBase64;
       if (!finalAvatar) {
@@ -73,11 +73,11 @@ const Profile: React.FC = () => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.msg || 'Update failed');
-      setUser(data); 
-      
+      setUser(data);
+
       // Update local storage
       localStorage.setItem('user', JSON.stringify(data));
-      setIsEditingName(false); 
+      setIsEditingName(false);
       setAvatarFileBase64(null); // Reset local upload state
       alert('Profile updated!');
     } catch (error: any) { alert(error.message); }
@@ -149,7 +149,7 @@ const Profile: React.FC = () => {
 
   const handleVerifyOtp = () => {
     const otpCode = otp.join('');
-    if (otpCode.length < 4) return; 
+    if (otpCode.length < 4) return;
     setVerifyingOtp(true);
     setTimeout(() => {
       const updatedUser = { ...user, phoneVerified: true };
@@ -158,7 +158,7 @@ const Profile: React.FC = () => {
       setShowPhoneModal(false);
       setOtpSent(false);
       setPhoneNumber('');
-      setOtp(['', '', '', '']); 
+      setOtp(['', '', '', '']);
       setVerifyingOtp(false);
       alert('Phone number verified successfully!');
     }, 2000);
@@ -183,93 +183,98 @@ const Profile: React.FC = () => {
   const getAvatarUrl = () => {
     const u = user as any;
     const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=0f172a&color=fff&size=128&bold=true`;
-    
+
     // 1. First priority: Base64 upload or stored manual avatar
     if (u?.avatar && !u.avatar.includes('dicebear')) return u.avatar;
-    
+
     // 2. Second priority: Google Auth Picture (Commonly stored as 'picture' or 'photoURL')
     if (u?.picture) return u.picture;
     if (u?.photoURL) return u.photoURL;
-    
+
     // 3. Last priority: Initials fallback
     return fallback;
   };
-  
+
   const currentAvatarUrl = getAvatarUrl();
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: '#F5F5F7' }}>
-      <Loader2 className="animate-spin text-slate-400" size={40} />
+      <Loader2 className="animate-spin text-slate-400 w-8 h-8 sm:w-10 sm:h-10" />
     </div>
   );
 
   if (!user) return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: '#F5F5F7' }}>
-      <p style={{ color: '#64748b', fontWeight: 500 }}>Failed to load profile</p>
+      <p style={{ color: '#64748b', fontWeight: 500 }} className="text-sm sm:text-base">Failed to load profile</p>
     </div>
   );
+
+  const badgeLabel =
+    (user.trustScore || 30) >= 80 ? 'Elite' : (user.trustScore || 30) >= 50 ? 'Trusted' : 'New Member';
 
   return (
     <div className="w-full min-h-screen pb-24 relative" style={{ background: '#F5F5F7' }}>
       <button type="button" onClick={() => navigate(-1)}
-        className="absolute top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium hover:opacity-70 transition-opacity z-10"
+        className="absolute top-4 sm:top-8 left-4 md:left-8 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium hover:opacity-70 transition-opacity z-10"
         style={{ color: '#64748b' }}>
-        <ChevronLeft size={18} /> Back
+        <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Back
       </button>
-      <div className="max-w-[1000px] mx-auto px-4 md:px-8 py-8 sm:py-12 lg:py-16">
+
+      <div className="max-w-[1000px] mx-auto px-4 md:px-8 py-6 sm:py-12 lg:py-16 mt-8 sm:mt-0">
 
         {/* Profile Header */}
-        <div style={cardStyle} className="p-6 sm:p-10 mb-8">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
-            <div className="relative group cursor-pointer" onClick={() => setIsEditingName(true)}>
-              <img 
+        <div style={{ ...cardStyle, borderRadius: '1.5rem' }} className="p-5 sm:p-10 mb-6 sm:mb-8 sm:rounded-[2rem]">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-8">
+            <div className="relative group cursor-pointer shrink-0 mt-2 sm:mt-0" onClick={() => setIsEditingName(true)}>
+              <img
                 src={avatarFileBase64 || currentAvatarUrl}
-                alt="Profile" 
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover transition-transform group-hover:scale-105 bg-slate-100"
-                style={{ border: '4px solid #ffffff', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} 
+                alt="Profile"
+                className="w-20 h-20 sm:w-32 sm:h-32 rounded-full object-cover transition-transform group-hover:scale-105 bg-slate-100"
+                style={{ border: '4px solid #ffffff', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
               />
 
               <div className="absolute inset-0 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}>
-                <span style={{ color: '#ffffff', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Edit</span>
+                <span style={{ color: '#ffffff', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }} className="sm:text-xs">Edit</span>
               </div>
 
-              <div className="absolute bottom-0 right-0 p-1.5 rounded-full border-4 border-white" style={{ background: user.isVerified ? '#10b981' : '#cbd5e1' }}>
-                <ShieldCheck size={16} color="#ffffff" />
+              <div className="absolute bottom-0 right-0 p-1 sm:p-1.5 rounded-full border-[3px] sm:border-4 border-white" style={{ background: user.isVerified ? '#10b981' : '#cbd5e1' }}>
+                <ShieldCheck size={12} className="sm:w-4 sm:h-4" color="#ffffff" />
               </div>
             </div>
 
-            <div className="flex-1 text-center md:text-left w-full">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>{user.name}</h1>
+            <div className="flex-1 text-center md:text-left w-full pt-1 sm:pt-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4">
+                <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }} className="sm:text-3xl lg:text-4xl">{user.name}</h1>
                 <button type="button" onClick={() => setIsEditingName(true)}
-                  style={{ padding: '10px 24px', borderRadius: '99px', background: '#f1f5f9', color: '#0f172a', fontSize: '14px', fontWeight: 600, border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-                  Edit Profile
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 sm:py-2.5 rounded-full sm:rounded-[99px] bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition-colors w-full sm:w-auto"
+                  style={{ border: '1px solid #e2e8f0', cursor: 'pointer' }}>
+                  <Edit2 size={12} className="sm:w-[14px] sm:h-[14px]" /> Edit Profile
                 </button>
               </div>
 
-              <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 sm:gap-6 mb-6 pb-6" style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fffbeb', padding: '6px 16px', borderRadius: '99px', border: '1px solid #fef3c7' }}>
-                  <Star size={16} color="#f59e0b" />
-                  <span style={{ color: '#92400e', fontSize: '14px', fontWeight: 600 }}>{user.trustScore} Trust Score</span>
+              <div className="flex flex-wrap justify-center md:justify-start items-center gap-3 sm:gap-6 mb-5 sm:mb-6 pb-5 sm:pb-6" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fffbeb', padding: '4px 12px', borderRadius: '99px', border: '1px solid #fef3c7' }} className="sm:gap-[8px] sm:px-[16px] sm:py-[6px]">
+                  <Star size={14} className="sm:w-4 sm:h-4" color="#f59e0b" />
+                  <span style={{ color: '#92400e', fontSize: '12px', fontWeight: 600 }} className="sm:text-sm">{user.trustScore || 30} Trust Score</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '14px', fontWeight: 500 }}>
-                  <Users size={16} color="#94a3b8" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '12px', fontWeight: 500 }} className="sm:gap-[8px] sm:text-sm">
+                  <Users size={14} className="sm:w-4 sm:h-4" color="#94a3b8" />
                   <span>{user.successfulTransactions || 0} Deals</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '14px', fontWeight: 500 }}>
-                  <Award size={16} color="#94a3b8" />
-                  <span>{user.trustScore >= 80 ? 'Elite' : user.trustScore >= 50 ? 'Trusted' : 'New Member'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '12px', fontWeight: 500 }} className="sm:gap-[8px] sm:text-sm">
+                  <Award size={14} className="sm:w-4 sm:h-4" color="#94a3b8" />
+                  <span>{badgeLabel}</span>
                 </div>
               </div>
 
               <div>
                 <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '99px', fontSize: '12px', fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '99px', fontSize: '10px', fontWeight: 700,
                   background: user.kycStatus === 'verified' ? '#d1fae5' : '#fffbeb',
                   color: user.kycStatus === 'verified' ? '#047857' : '#b45309',
                   border: `1px solid ${user.kycStatus === 'verified' ? '#a7f3d0' : '#fde68a'}`
-                }}>
-                  {user.kycStatus === 'verified' ? <><CheckCircle2 size={14} /> KYC Verified</> : '⏳ KYC Pending'}
+                }} className="sm:gap-[8px] sm:px-[16px] sm:py-[6px] sm:text-xs">
+                  {user.kycStatus === 'verified' ? <><CheckCircle2 size={12} className="sm:w-[14px] sm:h-[14px]" /> KYC Verified</> : '⏳ KYC Pending'}
                 </span>
               </div>
             </div>
@@ -279,41 +284,45 @@ const Profile: React.FC = () => {
         {/* Edit Modal */}
         {isEditingName && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-            <div style={{ ...cardStyle, padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem' }}>Edit Profile</h2>
-              <div className="space-y-5">
+            <div style={{ ...cardStyle, padding: '1.5rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', borderRadius: '1.5rem' }} className="sm:p-8 sm:rounded-[2rem]">
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.25rem' }} className="sm:text-xl sm:mb-6">Edit Profile</h2>
+              <div className="space-y-4 sm:space-y-5">
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#64748b', marginBottom: '8px' }}>Display Name</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }} className="sm:text-sm sm:mb-2 uppercase tracking-wide">Display Name</label>
                   <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)}
-                    style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 16px', fontSize: '14px', fontWeight: 500, color: '#000000', outline: 'none' }}
+                    style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '10px 14px', fontSize: '14px', fontWeight: 500, color: '#000000', outline: 'none' }}
+                    className="sm:rounded-xl sm:p-3"
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#64748b', marginBottom: '8px' }}>Upload Profile Picture</label>
-                  <div className="flex items-center gap-4">
-                    <img 
-                      src={avatarFileBase64 || currentAvatarUrl} 
-                      alt="Preview" 
-                      className="w-12 h-12 rounded-full object-cover border border-slate-200" 
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }} className="sm:text-sm sm:mb-2 uppercase tracking-wide">Profile Picture</label>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <img
+                      src={avatarFileBase64 || currentAvatarUrl}
+                      alt="Preview"
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border border-slate-200 shrink-0"
                     />
-                    <input 
-                      type="file" 
-                      accept="image/*" 
+                    <input
+                      type="file"
+                      accept="image/*"
                       onChange={handleImageUpload}
-                      style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '8px', fontSize: '12px', color: '#64748b', outline: 'none' }}
+                      style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '8px', fontSize: '12px', color: '#64748b', outline: 'none' }}
+                      className="sm:rounded-xl"
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4">
                   <button onClick={() => { setIsEditingName(false); setAvatarFileBase64(null); }}
-                    style={{ flex: 1, padding: '12px', borderRadius: '99px', fontSize: '14px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', border: 'none', cursor: 'pointer' }}>
+                    style={{ flex: 1, padding: '10px', borderRadius: '99px', fontSize: '12px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', border: 'none', cursor: 'pointer' }}
+                    className="sm:p-3 sm:text-sm order-2 sm:order-1">
                     Cancel
                   </button>
                   <button onClick={() => handleSaveProfile(nameDraft, avatarFileBase64)} disabled={savingName}
-                    style={{ flex: 1, padding: '12px', borderRadius: '99px', fontSize: '14px', fontWeight: 600, color: '#ffffff', background: '#0f172a', border: 'none', cursor: savingName ? 'not-allowed' : 'pointer', opacity: savingName ? 0.7 : 1 }}>
-                    {savingName ? 'Saving...' : 'Save Changes'}
+                    style={{ flex: 1, padding: '10px', borderRadius: '99px', fontSize: '12px', fontWeight: 600, color: '#ffffff', background: '#0f172a', border: 'none', cursor: savingName ? 'not-allowed' : 'pointer', opacity: savingName ? 0.7 : 1 }}
+                    className="sm:p-3 sm:text-sm order-1 sm:order-2 flex justify-center items-center">
+                    {savingName ? <Loader2 size={16} className="animate-spin" /> : 'Save Changes'}
                   </button>
                 </div>
               </div>
@@ -324,26 +333,26 @@ const Profile: React.FC = () => {
         {/* --- Phone Verification Modal --- */}
         {showPhoneModal && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-            <div style={{ ...cardStyle, padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative' }}>
-              <button onClick={() => setShowPhoneModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={20} /></button>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem' }}>Verify Mobile Number</h2>
+            <div style={{ ...cardStyle, padding: '1.5rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', borderRadius: '1.5rem' }} className="sm:p-8 sm:rounded-[2rem]">
+              <button onClick={() => setShowPhoneModal(false)} className="absolute top-3 sm:top-4 right-3 sm:right-4 text-slate-400 hover:text-slate-600"><X size={18} className="sm:w-5 sm:h-5" /></button>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.25rem' }} className="sm:text-xl sm:mb-6">Verify Mobile Number</h2>
               {!otpSent ? (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#64748b', marginBottom: '8px' }}>Phone Number</label>
-                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                      <Smartphone size={18} className="text-slate-400 mr-2" />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }} className="sm:text-sm sm:mb-2 uppercase tracking-wide">Phone Number</label>
+                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3">
+                      <Smartphone size={16} className="text-slate-400 mr-2 sm:w-[18px] sm:h-[18px]" />
                       <input type="tel" placeholder="Enter 10-digit number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={{ background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }} />
                     </div>
                   </div>
-                  <button onClick={handleSendOtp} disabled={phoneNumber.length < 10} style={{ width: '100%', padding: '12px', borderRadius: '99px', background: phoneNumber.length < 10 ? '#cbd5e1' : '#0f172a', color: 'white', fontWeight: 600, fontSize: '14px', cursor: phoneNumber.length < 10 ? 'not-allowed' : 'pointer' }}>
+                  <button onClick={handleSendOtp} disabled={phoneNumber.length < 10} style={{ width: '100%', padding: '10px', borderRadius: '99px', background: phoneNumber.length < 10 ? '#cbd5e1' : '#0f172a', color: 'white', fontWeight: 600, fontSize: '12px', cursor: phoneNumber.length < 10 ? 'not-allowed' : 'pointer' }} className="sm:p-3 sm:text-sm mt-2 sm:mt-0">
                     Send OTP
                   </button>
                 </div>
               ) : (
-                <div className="space-y-5">
-                  <p className="text-sm text-slate-500 text-center">OTP sent to <span className="font-bold text-slate-800">{phoneNumber}</span></p>
-                  <div className="flex gap-3 justify-center">
+                <div className="space-y-4 sm:space-y-5">
+                  <p className="text-xs sm:text-sm text-slate-500 text-center">OTP sent to <span className="font-bold text-slate-800">{phoneNumber}</span></p>
+                  <div className="flex gap-2 sm:gap-3 justify-center">
                     {otp.map((digit, index) => (
                       <input key={index} id={`otp-${index}`} type="text" maxLength={1} value={digit}
                         onChange={(e) => {
@@ -352,12 +361,13 @@ const Profile: React.FC = () => {
                           setOtp(newOtp);
                           if (e.target.value && index < 3) document.getElementById(`otp-${index + 1}`)?.focus();
                         }}
-                        style={{ width: '50px', height: '50px', textAlign: 'center', fontSize: '1.5rem', fontWeight: 600, borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
+                        style={{ width: '40px', height: '45px', textAlign: 'center', fontSize: '1.25rem', fontWeight: 600, borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc' }}
+                        className="sm:w-[50px] sm:h-[50px] sm:text-2xl sm:rounded-xl"
                       />
                     ))}
                   </div>
-                  <button onClick={handleVerifyOtp} disabled={verifyingOtp} style={{ width: '100%', padding: '12px', borderRadius: '99px', background: '#0f172a', color: 'white', fontWeight: 600, fontSize: '14px', opacity: verifyingOtp ? 0.7 : 1 }}>
-                    {verifyingOtp ? 'Verifying...' : 'Verify OTP'}
+                  <button onClick={handleVerifyOtp} disabled={verifyingOtp} style={{ width: '100%', padding: '10px', borderRadius: '99px', background: '#0f172a', color: 'white', fontWeight: 600, fontSize: '12px', opacity: verifyingOtp ? 0.7 : 1 }} className="sm:p-3 sm:text-sm mt-2 flex justify-center items-center">
+                    {verifyingOtp ? <Loader2 size={16} className="animate-spin sm:w-5 sm:h-5" /> : 'Verify OTP'}
                   </button>
                 </div>
               )}
@@ -368,31 +378,31 @@ const Profile: React.FC = () => {
         {/* --- Liveness Check Modal --- */}
         {showLivenessModal && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-            <div style={{ ...cardStyle, padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', textAlign: 'center' }}>
-              <button onClick={() => setShowLivenessModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={20} /></button>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem' }}>Liveness Check</h2>
-              <div className="w-full aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center mb-6 relative overflow-hidden">
+            <div style={{ ...cardStyle, padding: '1.5rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', textAlign: 'center', borderRadius: '1.5rem' }} className="sm:p-8 sm:rounded-[2rem]">
+              <button onClick={() => setShowLivenessModal(false)} className="absolute top-3 sm:top-4 right-3 sm:right-4 text-slate-400 hover:text-slate-600"><X size={18} className="sm:w-5 sm:h-5" /></button>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.25rem' }} className="sm:text-xl sm:mb-6">Liveness Check</h2>
+              <div className="w-full aspect-square bg-slate-50 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center mb-4 sm:mb-6 relative overflow-hidden">
                 {livenessStep === 'idle' && (
                   <>
-                    <Camera size={48} className="text-slate-400 mb-4" />
-                    <p className="text-sm text-slate-500 px-8">Position your face in the frame and click start.</p>
+                    <Camera size={40} className="text-slate-400 mb-3 sm:mb-4 sm:w-12 sm:h-12" />
+                    <p className="text-xs sm:text-sm text-slate-500 px-6 sm:px-8">Position your face in the frame and click start.</p>
                   </>
                 )}
                 {livenessStep === 'scanning' && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
-                    <div className="w-24 h-24 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-4"></div>
-                    <p className="text-emerald-400 font-medium animate-pulse">Scanning face...</p>
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-3 sm:mb-4"></div>
+                    <p className="text-emerald-400 font-medium text-xs sm:text-sm animate-pulse">Scanning face...</p>
                   </div>
                 )}
                 {livenessStep === 'complete' && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-500 text-white">
-                    <CheckCircle2 size={64} className="mb-2" />
-                    <p className="font-bold text-lg">Verified</p>
+                    <CheckCircle2 size={48} className="mb-2 sm:w-16 sm:h-16" />
+                    <p className="font-bold text-base sm:text-lg">Verified</p>
                   </div>
                 )}
               </div>
               {livenessStep === 'idle' && (
-                <button onClick={handleStartLiveness} style={{ width: '100%', padding: '12px', borderRadius: '99px', background: '#0f172a', color: 'white', fontWeight: 600, fontSize: '14px' }}>
+                <button onClick={handleStartLiveness} style={{ width: '100%', padding: '10px', borderRadius: '99px', background: '#0f172a', color: 'white', fontWeight: 600, fontSize: '12px' }} className="sm:p-3 sm:text-sm">
                   Start Camera
                 </button>
               )}
@@ -400,44 +410,44 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
           {/* Reputation */}
           <section>
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>Reputation Feed</h2>
-              <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#64748b' }}>Live</span>
+            <div className="flex items-center justify-between mb-3 sm:mb-4 px-1 sm:px-2">
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }} className="sm:text-lg">Reputation Feed</h2>
+              <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '6px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#64748b' }} className="sm:text-xs sm:py-1 sm:px-2.5">Live</span>
             </div>
-            <div style={{ ...cardStyle, padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
-              <Star style={{ marginBottom: '12px', color: '#e2e8f0' }} size={40} />
-              <p style={{ color: '#64748b', fontSize: '14px', fontWeight: 500, maxWidth: '250px' }}>No consensus records found. Complete a transaction to build reputation.</p>
+            <div style={{ ...cardStyle, borderRadius: '1.5rem', padding: '1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '160px' }} className="sm:p-8 sm:min-h-[200px] sm:rounded-[2rem]">
+              <Star style={{ marginBottom: '8px', color: '#e2e8f0' }} className="w-8 h-8 sm:w-10 sm:h-10 sm:mb-3" />
+              <p style={{ color: '#64748b', fontSize: '12px', fontWeight: 500, maxWidth: '250px' }} className="sm:text-sm">No consensus records found. Complete a transaction to build reputation.</p>
             </div>
           </section>
 
           {/* History */}
           <section>
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>Activity</h2>
-              <Link to="/activity" style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', textDecoration: 'none' }}>View All</Link>
+            <div className="flex items-center justify-between mb-3 sm:mb-4 px-1 sm:px-2">
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }} className="sm:text-lg">Activity</h2>
+              <Link to="/activity" style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', textDecoration: 'none' }} className="sm:text-sm">View All</Link>
             </div>
-            <div style={{ ...cardStyle, padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '200px' }}>
-              <div style={{ textAlign: 'center', padding: '16px 0', marginBottom: '16px', color: '#94a3b8', fontWeight: 500, fontSize: '14px' }}>
+            <div style={{ ...cardStyle, borderRadius: '1.5rem', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '160px' }} className="sm:p-8 sm:min-h-[200px] sm:rounded-[2rem]">
+              <div style={{ textAlign: 'center', padding: '12px 0', marginBottom: '12px', color: '#94a3b8', fontWeight: 500, fontSize: '12px' }} className="sm:p-4 sm:mb-4 sm:text-sm">
                 No recent activity.
               </div>
               <button onClick={() => navigate('/explore')}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', borderRadius: '99px', fontWeight: 600, fontSize: '14px', color: '#ffffff', background: '#0f172a', border: 'none', cursor: 'pointer' }}>
-                Browse Items <ArrowRight size={16} />
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', gap: '6px', padding: '12px', borderRadius: '99px', fontWeight: 600, fontSize: '12px', color: '#ffffff', background: '#0f172a', border: 'none', cursor: 'pointer', maxWidth: '250px', margin: '0 auto' }} className="sm:gap-2 sm:p-3.5 sm:text-sm">
+                Browse Items <ArrowRight size={14} className="sm:w-4 sm:h-4" />
               </button>
             </div>
           </section>
         </div>
 
         {/* Verifications */}
-        <div className="mt-12 sm:mt-16">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '1.5rem', paddingLeft: '8px' }}>Trust & Verifications</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-            <CredentialCard label="Government ID" status={user.kycStatus === 'verified' ? 'Verified' : 'Pending'} onClick={() => handleVerify('kyc')} icon={<CreditCard size={20} />} verified={user.kycStatus === 'verified'} />
-            <CredentialCard label="Liveness Check" status={user.livenessStatus ? 'Passed' : 'Pending'} onClick={() => handleVerify('liveness')} icon={<ShieldCheck size={20} />} verified={user.livenessStatus} />
-            <CredentialCard label="Mobile Number" status={user.phoneVerified ? 'Verified' : 'Pending'} onClick={() => handleVerify('phone')} icon={<Users size={20} />} verified={user.phoneVerified} />
+        <div className="mt-8 sm:mt-12 lg:mt-16">
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem', paddingLeft: '4px' }} className="sm:text-xl sm:mb-6 sm:pl-2">Trust & Verifications</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+            <CredentialCard label="Government ID" status={user.kycStatus === 'verified' ? 'Verified' : 'Pending'} onClick={() => handleVerify('kyc')} icon={<CreditCard size={18} className="sm:w-5 sm:h-5" />} verified={user.kycStatus === 'verified'} />
+            <CredentialCard label="Liveness Check" status={user.livenessStatus ? 'Passed' : 'Pending'} onClick={() => handleVerify('liveness')} icon={<ShieldCheck size={18} className="sm:w-5 sm:h-5" />} verified={user.livenessStatus} />
+            <CredentialCard label="Mobile Number" status={user.phoneVerified ? 'Verified' : 'Pending'} onClick={() => handleVerify('phone')} icon={<Users size={18} className="sm:w-5 sm:h-5" />} verified={user.phoneVerified} />
           </div>
         </div>
       </div>
@@ -449,24 +459,30 @@ const CredentialCard = ({ label, status, icon, verified, onClick }: { label: str
   <div onClick={onClick} style={{
     background: '#ffffff',
     border: verified ? '1px solid #10b981' : '1px solid #e2e8f0',
-    borderRadius: '1.5rem',
-    padding: '1.5rem',
+    borderRadius: '1.25rem',
+    padding: '1.25rem',
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-    transition: 'all 0.2s ease'
-  }}>
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '16px'
+  }} className="sm:rounded-[1.5rem] sm:p-6 sm:flex-col sm:items-start sm:gap-0">
     <div style={{
-      width: '40px', height: '40px', borderRadius: '12px',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px',
+      width: '36px', height: '36px', borderRadius: '10px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: verified ? '#d1fae5' : '#f1f5f9',
       color: verified ? '#059669' : '#64748B'
-    }}>
-      {verified ? <CheckCircle2 size={20} /> : icon}
+    }} className="sm:w-10 sm:h-10 sm:rounded-xl sm:mb-4 shrink-0">
+      {verified ? <CheckCircle2 size={18} className="sm:w-5 sm:h-5" /> : icon}
     </div>
-    <h3 style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px', marginBottom: '4px' }}>{label}</h3>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: verified ? '#10b981' : '#f59e0b' }} />
-      <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: verified ? '#10b981' : '#64748B' }}>{status}</p>
+    <div className="flex-1 sm:w-full flex flex-col justify-center">
+      <h3 style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px', marginBottom: '2px' }} className="sm:text-sm sm:mb-1">{label}</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="sm:gap-1.5">
+        <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: verified ? '#10b981' : '#f59e0b' }} className="sm:w-1.5 sm:h-1.5" />
+        <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: verified ? '#10b981' : '#64748B' }} className="sm:text-[10px]">{status}</p>
+      </div>
     </div>
   </div>
 );
