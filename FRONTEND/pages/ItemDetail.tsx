@@ -115,14 +115,14 @@ const ItemDetail: React.FC = () => {
     });
   };
 
-  // 🔥 CALCULATION
+  // 🔥 CALCULATION FIX: 
+  // 1. Hardcoded 50 fallback ah thookiyachu
+  // 2. Exact ah DB la irunthu vara securityDeposit ah ulla eduthachu
   const rentalFee = (item?.pricePerDay || 0) * days;
   const trustBonus = 10;
 
-  let escrowDeposit = Number(item?.escrowDepositAmount) || Number(item?.insuranceDeposit) || 0;
-  if (selectedPaymentMode === 'escrow' && escrowDeposit === 0) {
-    escrowDeposit = 50; // Fallback force
-  }
+  // Multiple variable keys handle panniruken, just in case backend per ah mathi iruntha kooda catch agidum.
+  const escrowDeposit = Number(item?.securityDeposit) || Number(item?.escrowDepositAmount) || Number(item?.insuranceDeposit) || Number(item?.depositAmount) || 0;
 
   const totalDue = rentalFee + (selectedPaymentMode === 'escrow' ? escrowDeposit : 0) - trustBonus;
 
@@ -158,7 +158,6 @@ const ItemDetail: React.FC = () => {
       handler: async function (response: any) {
         try {
 
-          // 🔥 ULTIMATE DEMO SAVER: Saving the exact deposit amount in browser memory
           if (selectedPaymentMode === 'escrow') {
             localStorage.setItem('demo_escrow_amount', String(escrowDeposit));
           }
