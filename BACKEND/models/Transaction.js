@@ -17,7 +17,15 @@ const TransactionSchema = new mongoose.Schema({
   otpCode: { type: String },
   returnOtpCode: { type: String },
   ownerVideoUrl: { type: String },
-  renterVideoUrl: { type: String }
+  renterVideoUrl: { type: String },
+  // 🔥 PUDHU FEATURE: Escrow Workflow Tracking
+  transactionType: { type: String, default: 'normal' },
+  escrowDepositAmount: { type: Number, default: 0 },
+  escrowStatus: {
+    type: String,
+    enum: ['NONE', 'HELD', 'RELEASED_TO_RENTER', 'DISPUTED'],
+    default: 'NONE'
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Transaction", TransactionSchema);

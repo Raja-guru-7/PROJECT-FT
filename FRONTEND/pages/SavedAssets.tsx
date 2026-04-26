@@ -10,54 +10,79 @@ export const SavedAssets: React.FC = () => {
   const [savedItems, setSavedItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAssets = async () => {
-      setIsLoading(true);
-      try {
-        let items: Item[] = [];
-        try {
-          items = await api.getSavedAssets();
-        } catch (backendError) {
-          const userStr = localStorage.getItem('user');
-          const savedIds = userStr ? JSON.parse(userStr).savedAssets || [] : [];
+  const loadSavedItems = async () => {
+    setIsLoading(true);
+    try {
+      // ✅ ALWAYS read from localStorage first - most reliable source
+      const userStr = localStorage.getItem('user');
+      const savedIds: string[] = userStr ? (JSON.parse(userStr).savedAssets || []) : [];
 
-          if (savedIds.length > 0) {
-            const allItems = await api.getItems({});
-            items = allItems.filter((item: Item) => savedIds.includes(item.id));
+      if (savedIds.length === 0) {
+        // Try backend as fallback
+        try {
+          const backendItems = await api.getSavedAssets();
+          if (backendItems && backendItems.length > 0) {
+            setSavedItems(backendItems);
+            setIsLoading(false);
+            return;
           }
-        }
-        setSavedItems(items);
-      } catch (error) {
-        console.error(error);
-      } finally {
+        } catch (_) { }
+        setSavedItems([]);
         setIsLoading(false);
+        return;
       }
+
+      // ✅ Fetch all items and filter by saved ids
+      const allItems = await api.getItems({});
+      const filtered = allItems.filter((item: Item) =>
+        savedIds.includes(item.id) || savedIds.includes((item as any)._id)
+      );
+      setSavedItems(filtered);
+    } catch (error) {
+      console.error('Failed to load saved items:', error);
+      setSavedItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSavedItems();
+
+    // ✅ Re-load when heart toggled in Explore page
+    const handleUpdate = () => loadSavedItems();
+    window.addEventListener('savedAssetsUpdated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('savedAssetsUpdated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
-    fetchAssets();
   }, []);
 
   const handleRemoveSaved = async (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // 1. INSTANT UI REMOVAL 
-    setSavedItems(prev => prev.filter(item => item.id !== productId));
+    // 1. Instant UI removal
+    setSavedItems(prev => prev.filter(item => item.id !== productId && (item as any)._id !== productId));
 
-    // 2. INSTANT LOCAL STORAGE UPDATE
+    // 2. localStorage update
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const userObj = JSON.parse(userStr);
-      if (userObj.savedAssets) {
-        userObj.savedAssets = userObj.savedAssets.filter((id: string) => id !== productId);
-        localStorage.setItem('user', JSON.stringify(userObj));
-      }
+      userObj.savedAssets = (userObj.savedAssets || []).filter(
+        (id: string) => id !== productId
+      );
+      localStorage.setItem('user', JSON.stringify(userObj));
+      window.dispatchEvent(new Event('savedAssetsUpdated'));
     }
 
-    // 3. SILENT BACKEND SYNC
+    // 3. Silent backend sync
     try {
       await api.toggleSaveAsset(productId);
     } catch (err) {
-      console.warn("Backend crash ignored. Item removed locally! 😎");
+      console.warn('Backend sync failed, local removed.');
     }
   };
 
@@ -66,12 +91,26 @@ export const SavedAssets: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen w-full bg-[#F5F5F7] pb-24 relative">
-      <button type="button" onClick={() => navigate(-1)}
-        className="absolute top-4 sm:top-8 left-4 md:left-8 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
-        <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px] group-hover:-translate-x-1 transition-transform" /> Back
-      </button>
-      <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 sm:py-12 mt-8 sm:mt-0">
+    <div className="min-h-screen w-full bg-[#F5F5F7] pb-24">
+
+      {/* ✅ Responsive Back Button - normal flow */}
+      <div className="max-w-[1200px] mx-auto px-4 md:px-8">
+        <div className="pt-4 sm:pt-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group"
+          >
+            <ChevronLeft
+              size={16}
+              className="sm:w-[18px] sm:h-[18px] group-hover:-translate-x-1 transition-transform"
+            />
+            Back
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-4 sm:py-6">
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-12">
           <div>
@@ -81,10 +120,14 @@ export const SavedAssets: React.FC = () => {
 
           <div className="relative w-full md:w-72">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Search saved items..." value={searchQuery}
+            <input
+              type="text"
+              placeholder="Search saved items..."
+              value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-full py-2.5 sm:py-3 pl-11 pr-4 text-sm font-medium text-slate-900 placeholder-slate-400 outline-none focus:border-slate-400 transition-colors shadow-sm"
-              style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }} />
+              style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a' }}
+            />
           </div>
         </div>
 
@@ -113,12 +156,17 @@ export const SavedAssets: React.FC = () => {
               <Link to={`/item/${item.id}`} key={item.id} className="block group outline-none h-full">
                 <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] p-2.5 sm:p-3 border border-slate-100 flex flex-col h-full relative hover:shadow-lg transition-shadow duration-300">
                   <div className="relative aspect-[4/3] rounded-[1.25rem] sm:rounded-[1.5rem] overflow-hidden mb-3 sm:mb-4 bg-slate-50">
-                    <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-
-                    <button onClick={(e) => handleRemoveSaved(e, item.id)} className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/90 backdrop-blur-md shadow-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
+                    <button
+                      onClick={(e) => handleRemoveSaved(e, item.id || (item as any)._id)}
+                      className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/90 backdrop-blur-md shadow-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                    >
                       <Heart size={16} className="sm:w-[18px] sm:h-[18px] fill-red-500 text-red-500" />
                     </button>
-
                     <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 bg-white/95 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-sm flex items-center gap-1">
                       <span className="text-xs sm:text-sm font-semibold text-slate-800">₹{item.pricePerDay}</span>
                       <span className="text-[9px] sm:text-[10px] font-medium text-slate-500 mt-0.5">/day</span>

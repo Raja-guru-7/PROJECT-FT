@@ -79,3 +79,23 @@ export interface Transaction {
   ownerVideoUrl?: string;
   renterVideoUrl?: string;
 }
+
+export interface Item {
+  id: string;
+  ownerId: string;
+  owner?: any;
+  ownerName: string;
+  ownerTrustScore: number;
+  ownerAvatar?: string;
+  title: string;
+  description: string;
+  category: string;
+  pricePerDay: number;
+  depositAmount: number;
+  insuranceFee: number;
+  imageUrl: string;
+  videoUrl?: string;
+  paymentMode?: string;  // 
+  location: { lat: number; lng: number; address: string };
+  distance?: number;
+}

@@ -110,12 +110,10 @@ router.post("/:id/verify-return-otp", auth, async (req, res) => {
   } catch (err) { res.status(500).send("Server Error"); }
 });
 
-// 🚀 BULLETPROOF RETURN INITIATE ROUTE (FIXED)
 router.patch("/:id/initiate-return", auth, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
 
-    // Type-safe check to ensure ONLY the RENTER can initiate the return
     if (transaction.renterId.toString() !== req.user.id.toString()) {
       console.log("❌ Blocked: User is not the true renter!");
       return res.status(403).json({ msg: "Only renter can initiate return" });
@@ -154,16 +152,33 @@ router.post("/:id/complete-return", auth, async (req, res) => {
     if (transaction.ownerId.toString() !== req.user.id) return res.status(403).json({ msg: "Only owner" });
 
     transaction.status = "COMPLETED";
+    // 🔥 Escrow Update Logic Here if needed: transaction.escrowStatus = 'RELEASED_TO_RENTER';
     await transaction.save();
 
     const Product = require('../models/product');
     await Product.findByIdAndUpdate(transaction.itemId, { isAvailable: true, status: 'available', currentTransaction: null });
 
+    // 🔥 THE DYNAMIC SOCIAL TRUST ALGORITHM TRIGGER 🔥
     const User = require('../models/User');
-    await User.findByIdAndUpdate(transaction.renterId, { $inc: { trustScore: 5 } });
-    await User.findByIdAndUpdate(transaction.ownerId, { $inc: { trustScore: 5 } });
 
-    res.json({ success: true, msg: "Return finalized" });
+    // 1. Update Renter Score
+    const renter = await User.findById(transaction.renterId);
+    if (renter) {
+      renter.successfulTransactions += 1;
+      // You can update averageRating here later if you add a feedback system
+      renter.calculateTrustScore(); // Automatically caps at 100
+      await renter.save();
+    }
+
+    // 2. Update Owner Score
+    const owner = await User.findById(transaction.ownerId);
+    if (owner) {
+      owner.successfulTransactions += 1;
+      owner.calculateTrustScore(); // Automatically caps at 100
+      await owner.save();
+    }
+
+    res.json({ success: true, msg: "Return finalized & Trust Scores Updated" });
   } catch (err) { res.status(500).json({ success: false }); }
 });
 

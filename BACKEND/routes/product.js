@@ -6,15 +6,13 @@ const { uploadImage } = require("../cloudinary");
 
 router.post("/add", auth, (req, res, next) => {
   uploadImage.single("image")(req, res, (err) => {
-    if (err) {
-      console.error("MULTER/CLOUDINARY ERROR:", err.message);
-      return res.status(500).json({ msg: err.message });
-    }
+    if (err) return res.status(500).json({ msg: err.message });
     next();
   });
 }, async (req, res) => {
   try {
-    const { title, description, category, pricePerDay, insuranceDeposit, locationAddress, lat, lng } = req.body;
+    // 🔥 FIX: escrowDepositAmount ah req.body la irunthu edukurom
+    const { title, description, category, pricePerDay, insuranceDeposit, locationAddress, lat, lng, paymentMode, escrowDepositAmount } = req.body;
 
     const newProduct = new Product({
       owner: req.user.id,
@@ -24,6 +22,11 @@ router.post("/add", auth, (req, res, next) => {
       pricePerDay: Number(pricePerDay),
       insuranceDeposit: Number(insuranceDeposit) || 10,
       imageUrl: req.file ? req.file.path : '',
+      paymentMode: paymentMode || 'normal',
+
+      // 🔥 PUDHU FEATURE: Inga thaan antha 100 / 200 security deposit DB-ku poguthu
+      escrowDepositAmount: Number(escrowDepositAmount) || 0,
+
       location: {
         type: "Point",
         coordinates: [parseFloat(lng) || 77.7172, parseFloat(lat) || 11.3410],
@@ -43,59 +46,33 @@ router.get("/nearby", async (req, res) => {
   try {
     const { lat, lng, radius = 30 } = req.query;
     const radiusInMeters = parseFloat(radius) * 1000;
-
     const products = await Product.find({
-      location: {
-        $nearSphere: {
-          $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
-          $maxDistance: radiusInMeters
-        }
-      },
+      location: { $nearSphere: { $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] }, $maxDistance: radiusInMeters } },
       $or: [{ status: 'available' }, { isAvailable: true }]
     }).populate("owner", "name trustScore avatar");
-
     res.json(products);
-  } catch (err) {
-    console.error("NEARBY ERROR:", err.message);
-    res.status(500).json({ msg: err.message });
-  }
+  } catch (err) { res.status(500).json({ msg: err.message }); }
 });
 
 router.get("/all", async (req, res) => {
   try {
     const { category, query, status } = req.query;
     let filter = {};
-
-    if (status === 'available') {
-      filter.$or = [{ status: 'available' }, { isAvailable: true }];
-    } else {
-      filter.isAvailable = true;
-    }
-
+    if (status === 'available') filter.$or = [{ status: 'available' }, { isAvailable: true }];
+    else filter.isAvailable = true;
     if (category) filter.category = category;
     if (query) filter.title = { $regex: query, $options: "i" };
-
-    const products = await Product.find(filter)
-      .populate("owner", "name trustScore avatar")
-      .sort({ createdAt: -1 });
-
+    const products = await Product.find(filter).populate("owner", "name trustScore avatar").sort({ createdAt: -1 });
     res.json(products);
-  } catch (err) {
-    console.error("ALL ERROR:", err.message);
-    res.status(500).json({ msg: err.message });
-  }
+  } catch (err) { res.status(500).json({ msg: err.message }); }
 });
 
 router.get("/:id", async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
-      .populate("owner", "name trustScore avatar");
+    const product = await Product.findById(req.params.id).populate("owner", "name trustScore avatar");
     if (!product) return res.status(404).json({ msg: "Product not found" });
     res.json(product);
-  } catch (err) {
-    console.error("PRODUCT ID ERROR:", err.message);
-    res.status(500).json({ msg: err.message });
-  }
+  } catch (err) { res.status(500).json({ msg: err.message }); }
 });
 
 module.exports = router;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, ArrowRight, Loader2, CreditCard, X, Camera, Smartphone, Edit2 } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Star, CheckCircle2, Award, Users, ArrowRight, Loader2, CreditCard, X, Camera, Smartphone, Edit2, Clock } from 'lucide-react';
 import { api } from '../services/api';
 import { User, Transaction } from '../types';
 
@@ -20,15 +20,12 @@ const Profile: React.FC = () => {
   const [savingName, setSavingName] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // Fixed: Added state to handle local file upload
   const [avatarFileBase64, setAvatarFileBase64] = useState<string | null>(null);
 
-  // Verification modal states
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [showLivenessModal, setShowLivenessModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // 4-digit OTP state
   const [otp, setOtp] = useState(['', '', '', '']);
   const [otpSent, setOtpSent] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -37,15 +34,44 @@ const Profile: React.FC = () => {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const [userData, transactionsData] = await Promise.all([
-          api.getCurrentUser(),
-          fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')}/api/transactions/user/${localStorage.getItem('userId')}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-          }).then(res => res.ok ? res.json() : [])
-        ]);
-        setUser(userData); setTransactions(transactionsData);
-      } catch (err) { console.error('Failed to fetch profile data'); }
-      finally { setLoading(false); }
+        const token = localStorage.getItem('token') || '';
+        const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+        // 1. User Data Fetch
+        const userData = await api.getCurrentUser();
+        setUser(userData);
+
+        const userId = localStorage.getItem('userId') || (userData as any)?._id || (userData as any)?.id || '';
+
+        // 2. BULLETPROOF TRANSACTIONS FETCH
+        // Mudal la original method try pannuvom (From your first code)
+        let txRes = await fetch(`${API_URL}/api/transactions/user/${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        // Oruvela antha route illana, namma default route-kku poguvom
+        if (!txRes.ok) {
+          txRes = await fetch(`${API_URL}/api/transaction/my`, {
+            headers: { 'x-auth-token': token }
+          });
+        }
+
+        if (txRes.ok) {
+          const txData = await txRes.json();
+          // Data array-va irukka nu check panni set pandrom
+          if (Array.isArray(txData)) {
+            setTransactions(txData);
+          } else if (txData.transactions && Array.isArray(txData.transactions)) {
+            setTransactions(txData.transactions);
+          } else if (txData.data && Array.isArray(txData.data)) {
+            setTransactions(txData.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile data');
+      } finally {
+        setLoading(false);
+      }
     };
     fetchProfileData();
   }, []);
@@ -59,11 +85,10 @@ const Profile: React.FC = () => {
     try {
       const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
-      // Use the newly uploaded image, OR keep the existing one (but strip the bad dicebear ones)
       let finalAvatar = newAvatarBase64;
       if (!finalAvatar) {
         finalAvatar = user?.avatar || '';
-        if (finalAvatar.includes('dicebear')) finalAvatar = ''; // Strip out bad default
+        if (finalAvatar.includes('dicebear')) finalAvatar = '';
       }
 
       const response = await fetch(`${API_URL}/api/auth/update-profile`, {
@@ -75,10 +100,9 @@ const Profile: React.FC = () => {
       if (!response.ok) throw new Error(data.msg || 'Update failed');
       setUser(data);
 
-      // Update local storage
       localStorage.setItem('user', JSON.stringify(data));
       setIsEditingName(false);
-      setAvatarFileBase64(null); // Reset local upload state
+      setAvatarFileBase64(null);
       alert('Profile updated!');
     } catch (error: any) { alert(error.message); }
     finally { setSavingName(false); }
@@ -179,19 +203,13 @@ const Profile: React.FC = () => {
     }, 3000);
   };
 
-  // --- Logic for Google Profile / Avatar Handling ---
   const getAvatarUrl = () => {
     const u = user as any;
     const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=0f172a&color=fff&size=128&bold=true`;
 
-    // 1. First priority: Base64 upload or stored manual avatar
     if (u?.avatar && !u.avatar.includes('dicebear')) return u.avatar;
-
-    // 2. Second priority: Google Auth Picture (Commonly stored as 'picture' or 'photoURL')
     if (u?.picture) return u.picture;
     if (u?.photoURL) return u.photoURL;
-
-    // 3. Last priority: Initials fallback
     return fallback;
   };
 
@@ -209,21 +227,34 @@ const Profile: React.FC = () => {
     </div>
   );
 
-  const badgeLabel =
-    (user.trustScore || 30) >= 80 ? 'Elite' : (user.trustScore || 30) >= 50 ? 'Trusted' : 'New Member';
+  const badgeLabel = (user.trustScore || 30) >= 80 ? 'Elite' : (user.trustScore || 30) >= 50 ? 'Trusted' : 'New Member';
+
+  // Safe Array mapping for latest 2 activities
+  const latestActivities = (transactions || []).length > 0 ? transactions.slice(0, 2) : [];
 
   return (
-    <div className="w-full min-h-screen pb-24 relative" style={{ background: '#F5F5F7' }}>
-      <button type="button" onClick={() => navigate(-1)}
-        className="absolute top-4 sm:top-8 left-4 md:left-8 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium hover:opacity-70 transition-opacity z-10"
-        style={{ color: '#64748b' }}>
-        <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Back
-      </button>
+    <div className="w-full min-h-screen pb-36 md:pb-24" style={{ background: '#F5F5F7' }}>
 
-      <div className="max-w-[1000px] mx-auto px-4 md:px-8 py-6 sm:py-12 lg:py-16 mt-8 sm:mt-0">
+      {/* ✅ FIXED BACK BUTTON - NORMAL FLOW, RESPONSIVE */}
+      <div className="max-w-[1000px] mx-auto px-4 md:px-8">
+        <div className="pt-4 sm:pt-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all group"
+          >
+            <ChevronLeft
+              size={16}
+              className="sm:w-[18px] sm:h-[18px] group-hover:-translate-x-1 transition-transform"
+            />
+            Back
+          </button>
+        </div>
+      </div>
 
-        {/* Profile Header */}
-        <div style={{ ...cardStyle, borderRadius: '1.5rem' }} className="p-5 sm:p-10 mb-6 sm:mb-8 sm:rounded-[2rem]">
+      <div className="max-w-[1000px] mx-auto px-4 md:px-8 py-4 sm:py-6 lg:py-8">
+
+        <div style={{ ...cardStyle, borderRadius: '1.5rem' }} className="p-4 sm:p-10 mb-6 sm:mb-8 sm:rounded-[2rem]">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-8">
             <div className="relative group cursor-pointer shrink-0 mt-2 sm:mt-0" onClick={() => setIsEditingName(true)}>
               <img
@@ -245,7 +276,9 @@ const Profile: React.FC = () => {
             <div className="flex-1 text-center md:text-left w-full pt-1 sm:pt-2">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4">
                 <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }} className="sm:text-3xl lg:text-4xl">{user.name}</h1>
-                <button type="button" onClick={() => setIsEditingName(true)}
+                <button
+                  type="button"
+                  onClick={() => setIsEditingName(true)}
                   className="flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 sm:py-2.5 rounded-full sm:rounded-[99px] bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition-colors w-full sm:w-auto"
                   style={{ border: '1px solid #e2e8f0', cursor: 'pointer' }}>
                   <Edit2 size={12} className="sm:w-[14px] sm:h-[14px]" /> Edit Profile
@@ -330,7 +363,7 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        {/* --- Phone Verification Modal --- */}
+        {/* Phone Verification Modal */}
         {showPhoneModal && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
             <div style={{ ...cardStyle, padding: '1.5rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', borderRadius: '1.5rem' }} className="sm:p-8 sm:rounded-[2rem]">
@@ -375,7 +408,7 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        {/* --- Liveness Check Modal --- */}
+        {/* Liveness Check Modal */}
         {showLivenessModal && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
             <div style={{ ...cardStyle, padding: '1.5rem', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', textAlign: 'center', borderRadius: '1.5rem' }} className="sm:p-8 sm:rounded-[2rem]">
@@ -423,20 +456,54 @@ const Profile: React.FC = () => {
             </div>
           </section>
 
-          {/* History */}
+          {/* Activity */}
           <section>
             <div className="flex items-center justify-between mb-3 sm:mb-4 px-1 sm:px-2">
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }} className="sm:text-lg">Activity</h2>
-              <Link to="/activity" style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', textDecoration: 'none' }} className="sm:text-sm">View All</Link>
+              <Link to="/activity" style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', textDecoration: 'none' }} className="sm:text-sm hover:underline">View All</Link>
             </div>
-            <div style={{ ...cardStyle, borderRadius: '1.5rem', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '160px' }} className="sm:p-8 sm:min-h-[200px] sm:rounded-[2rem]">
-              <div style={{ textAlign: 'center', padding: '12px 0', marginBottom: '12px', color: '#94a3b8', fontWeight: 500, fontSize: '12px' }} className="sm:p-4 sm:mb-4 sm:text-sm">
-                No recent activity.
-              </div>
-              <button onClick={() => navigate('/explore')}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', gap: '6px', padding: '12px', borderRadius: '99px', fontWeight: 600, fontSize: '12px', color: '#ffffff', background: '#0f172a', border: 'none', cursor: 'pointer', maxWidth: '250px', margin: '0 auto' }} className="sm:gap-2 sm:p-3.5 sm:text-sm">
-                Browse Items <ArrowRight size={14} className="sm:w-4 sm:h-4" />
-              </button>
+            <div style={{ ...cardStyle, borderRadius: '1.5rem', padding: '1rem', display: 'flex', flexDirection: 'column', minHeight: '160px', background: '#ffffff' }} className="sm:p-6 sm:min-h-[200px] sm:rounded-[2rem]">
+              {latestActivities.length > 0 ? (
+                <div className="space-y-3 sm:space-y-4 h-full flex flex-col justify-center w-full">
+                  {latestActivities.map((tx: any, idx) => {
+                    const currentUserId = String(user?._id || user?.id);
+                    const renterIdStr = String(tx.renterId?._id || tx.renterId?.id || tx.renterId);
+                    const isRenting = renterIdStr === currentUserId;
+
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => navigate(`/handover/${tx._id}`)}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${isRenting ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            {isRenting ? <ArrowRight size={16} /> : <CheckCircle2 size={16} />}
+                          </div>
+                          <div>
+                            <p className="text-xs sm:text-sm font-bold text-slate-800 line-clamp-1">{tx.itemTitle || 'Rental Asset'}</p>
+                            <p className="text-[10px] sm:text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                              <Clock size={10} /> {(tx.status || 'ACTIVE').replace(/_/g, ' ')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right pl-2">
+                          <p className="text-xs sm:text-sm font-bold text-slate-800">₹{tx.totalAmount || tx.totalPrice || 0}</p>
+                          <p className={`text-[10px] sm:text-[11px] font-bold ${isRenting ? 'text-slate-500' : 'text-emerald-600'}`}>
+                            {isRenting ? 'Paid' : 'Earned'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full pt-4 pb-2">
+                  <div style={{ textAlign: 'center', marginBottom: '12px', color: '#94a3b8', fontWeight: 500, fontSize: '12px' }} className="sm:mb-4 sm:text-sm">
+                    No recent activity.
+                  </div>
+                  <button onClick={() => navigate('/explore')}
+                    style={{ display: 'flex', alignItems: 'center', alignSelf: 'center', justifyContent: 'center', gap: '6px', padding: '10px 24px', borderRadius: '99px', fontWeight: 600, fontSize: '12px', color: '#ffffff', background: '#0f172a', border: 'none', cursor: 'pointer' }} className="sm:gap-2 sm:p-3 sm:px-6 sm:text-sm">
+                    Browse Items <ArrowRight size={14} className="sm:w-4 sm:h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -468,7 +535,7 @@ const CredentialCard = ({ label, status, icon, verified, onClick }: { label: str
     flexDirection: 'row',
     alignItems: 'center',
     gap: '16px'
-  }} className="sm:rounded-[1.5rem] sm:p-6 sm:flex-col sm:items-start sm:gap-0">
+  }} className="sm:rounded-[1.5rem] sm:p-6 sm:flex-col sm:items-start sm:gap-0 hover:border-slate-300">
     <div style={{
       width: '36px', height: '36px', borderRadius: '10px',
       display: 'flex', alignItems: 'center', justifyContent: 'center',

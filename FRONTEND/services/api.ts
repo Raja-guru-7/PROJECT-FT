@@ -28,7 +28,6 @@ class ApiService {
     return json;
   }
 
-  // ── NEW: Send OTP to email for login ────────────────────────────────────
   async sendLoginOtp(email: string, password: string): Promise<{ msg: string }> {
     const res = await fetch(`${BASE_URL}/auth/send-login-otp`, {
       method: 'POST',
@@ -40,7 +39,6 @@ class ApiService {
     return json;
   }
 
-  // ── UPDATED: Verify login OTP — accepts (email, otp) separately ─────────
   async verifyLoginOtp(email: string, otp: string): Promise<any> {
     const res = await fetch(`${BASE_URL}/auth/verify-login-otp`, {
       method: 'POST',
@@ -182,6 +180,7 @@ class ApiService {
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
         imageUrl: p.imageUrl || '',
+        paymentMode: p.paymentMode || 'normal', // ✅ FIX
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
@@ -213,6 +212,7 @@ class ApiService {
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
         imageUrl: p.imageUrl || '',
+        paymentMode: p.paymentMode || 'normal', // ✅ FIX — இது தான் missing-ஆ இருந்தது
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
@@ -420,6 +420,7 @@ class ApiService {
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
         imageUrl: p.imageUrl || '',
+        paymentMode: p.paymentMode || 'normal', // ✅ FIX
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,

@@ -121,6 +121,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
           </Link>
 
           {/* Profile Section */}
+          {/* FIX: Added position relative here, dropdown will be anchored to this div */}
           <div className="flex items-center gap-3 relative" ref={dropdownRef}>
             <div className="hidden md:flex flex-col items-end gap-0.5">
               <span className="text-sm font-semibold text-slate-800">{currentUser ? currentUser.name : '...'}</span>
@@ -136,10 +137,22 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
               <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
             </button>
 
+            {/* FIX: Changed right-0 positioning so dropdown aligns under the avatar perfectly */}
             {isProfileOpen && (
-              <div className="absolute top-14 right-0 w-60 sm:w-64 p-2 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="absolute top-[calc(100%+0.75rem)] right-0 w-60 sm:w-64 p-2 z-[3000] bg-white rounded-2xl shadow-xl border border-slate-100 origin-top-right"
+              >
                 <div className="p-3 mb-1 flex items-center gap-3 border-b border-slate-50">
-                  <img src={avatarUrl} alt="Profile" className="w-10 h-10 rounded-full object-cover bg-slate-100 shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackAvatar; }} />
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full object-cover bg-slate-100 shrink-0"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackAvatar; }}
+                  />
                   <div>
                     <p className="text-sm font-bold text-slate-800 line-clamp-1">{currentUser?.name || 'Loading...'}</p>
                     <p className="text-xs font-medium text-slate-500">{currentUser?.trustScore || 30} Trust Score</p>
@@ -151,10 +164,15 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
                   <ProfileMenuItem icon={<History size={16} />} label="Activity Log" onClick={() => handleMenuAction('/activity')} />
                   <ProfileMenuItem icon={<Settings size={16} />} label="Settings" onClick={() => handleMenuAction('/settings')} />
                   <div className="h-px my-1 bg-slate-100" />
-                  <ProfileMenuItem icon={<Repeat size={16} />} label="Switch Mode" onClick={() => handleMenuAction('/switch')} subLabel={userRole === 'RENTER' ? 'to Owner' : 'to Renter'} />
+                  <ProfileMenuItem
+                    icon={<Repeat size={16} />}
+                    label="Switch Mode"
+                    onClick={() => handleMenuAction('/switch')}
+                    subLabel={userRole === 'RENTER' ? 'to Owner' : 'to Renter'}
+                  />
                   <ProfileMenuItem icon={<LogOut size={16} />} label="Log Out" variant="danger" onClick={handleLogout} />
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
         </div>
@@ -178,7 +196,6 @@ const ProfileMenuItem = ({ icon, label, variant = 'default', onClick, subLabel }
     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${variant === 'danger' ? 'text-red-500 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-50 hover:text-black'}`}
   >
     <div className="flex items-center gap-3">{icon} {label}</div>
-    {/* Profile Menu Label */}
     {subLabel && <span className="text-xs text-slate-400">{subLabel}</span>}
   </button>
 );

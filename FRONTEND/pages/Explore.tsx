@@ -37,6 +37,7 @@ const MapUpdater = ({ center }: { center: { lat: number; lng: number } | null })
   return null;
 };
 
+// ✅ FIXED HeartButton - dispatches savedAssetsUpdated event
 const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ productId, initialSaved }) => {
   const [isHeartFilled, setIsHeartFilled] = useState(initialSaved);
 
@@ -61,12 +62,15 @@ const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ p
       }
       userObj.savedAssets = assets;
       localStorage.setItem('user', JSON.stringify(userObj));
+
+      // ✅ SavedAssets page க்கு notify பண்ணும்
+      window.dispatchEvent(new Event('savedAssetsUpdated'));
     }
 
     try {
       await api.toggleSaveAsset(productId);
     } catch (err) {
-      console.warn("Backend crash ignored. Local state forced! 😎");
+      console.warn("Backend crash ignored. Local state forced!");
     }
   };
 
@@ -87,11 +91,10 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
   const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["10deg", "-10deg"]);
   const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-10deg", "10deg"]);
 
-  // 🚀 FIX: Detect if device supports hover (Laptop/PC) vs touch (Mobile)
   const isHoverable = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!isHoverable) return; // Disable 3D calc on mobile
+    if (!isHoverable) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const xPct = (e.clientX - rect.left) / rect.width - 0.5;
     const yPct = (e.clientY - rect.top) / rect.height - 0.5;
@@ -110,7 +113,6 @@ const TiltCard = React.memo(({ item, savedAssets }: { item: Item & { calculatedD
       <motion.div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        // 🚀 FIX: Apply rotate ONLY on Desktop. Apply whileTap (click feedback) ONLY on Mobile.
         style={{
           rotateX: isHoverable ? rotateX : 0,
           rotateY: isHoverable ? rotateY : 0,
@@ -189,7 +191,15 @@ const Explore: React.FC = () => {
     } finally { setIsLoading(false); }
   };
 
-  useEffect(() => { fetchItems(); fetchSavedAssets(); }, [userLocation, selectedCategory, maxDistance]);
+  useEffect(() => {
+    fetchItems();
+    fetchSavedAssets();
+
+    // ✅ Listen for heart toggle updates from this page itself or SavedAssets
+    const handleAssetsUpdate = () => fetchSavedAssets();
+    window.addEventListener('savedAssetsUpdated', handleAssetsUpdate);
+    return () => window.removeEventListener('savedAssetsUpdated', handleAssetsUpdate);
+  }, [userLocation, selectedCategory, maxDistance]);
 
   const syncLocation = () => {
     if (!navigator.geolocation) return;
