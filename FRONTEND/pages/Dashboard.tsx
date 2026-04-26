@@ -132,7 +132,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                   <Loader2 className="animate-spin text-slate-400 sm:w-10 sm:h-10" size={32} />
                 </motion.div>
               ) : tab === 'renting' ? (
-                /* RENTING TAB CONTENT (Original logic) */
                 filteredTransactions.length > 0 ? (
                   filteredTransactions.map((tx: any, i: number) => {
                     const isOwner = false;
@@ -217,7 +216,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                   </motion.div>
                 )
               ) : (
-                /* 🔥 LENDING TAB CONTENT 🔥 */
+                /* 🔥 LENDING TAB CONTENT (Fixed Inline Colors) 🔥 */
                 myAssets.length > 0 ? (
                   myAssets.map((asset: any, i: number) => {
 
@@ -243,14 +242,28 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                           className="p-5 sm:p-6 md:p-8 bg-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
                         >
                           <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+
+                            {/* 🔥 FIXED PURPLE BOX ISSUE HERE 🔥 */}
                             <div className="w-full sm:w-auto">
-                              <div className={`inline-block px-2.5 sm:px-3 py-1 mb-2 sm:mb-3 rounded-full border transition-colors ${activeTxForAsset ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
-                                <span className={`text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-colors ${activeTxForAsset ? 'text-amber-700' : 'text-green-700'}`}>
+                              <div
+                                className="inline-block px-2.5 sm:px-3 py-1 mb-2 sm:mb-3 rounded-full border transition-colors"
+                                style={{
+                                  backgroundColor: activeTxForAsset ? '#FFFBEB' : '#F0FDF4',
+                                  borderColor: activeTxForAsset ? '#FDE68A' : '#BBF7D0'
+                                }}
+                              >
+                                <span
+                                  className="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-colors"
+                                  style={{
+                                    color: activeTxForAsset ? '#D97706' : '#15803D'
+                                  }}
+                                >
                                   {activeTxForAsset ? `RENTED - ${activeTxForAsset.status.replace(/_/g, ' ')}` : 'AVAILABLE FOR RENT'}
                                 </span>
                               </div>
                               <h3 className="text-lg sm:text-xl font-semibold text-slate-800 leading-tight group-hover:text-black transition-colors">{asset.title}</h3>
                             </div>
+
                             <div className="text-left sm:text-right bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 w-full sm:w-auto mt-2 sm:mt-0">
                               <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5 sm:mb-1">Rate</p>
                               <p className="text-lg sm:text-xl font-bold text-slate-800">₹{asset.pricePerDay}<span className="text-xs text-slate-500 font-medium">/day</span></p>
@@ -321,7 +334,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                     <TrendingUp size={12} className="sm:w-3.5 sm:h-3.5" /> Score
                   </div>
                 </div>
-                {/* 🔥 FIX: Explicitly made text-slate-900 for visibility and added hover pop 🔥 */}
                 <div className="text-[10px] sm:text-xs font-semibold bg-slate-50 text-slate-900 p-2.5 sm:p-3 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 border border-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-colors">
                   <CheckCircle2 size={14} className={`sm:w-4 sm:h-4 ${(currentUser?.trustScore || 30) >= 80 ? "text-green-500" : "text-amber-500"}`} />
                   {(currentUser?.trustScore || 30) >= 80 ? "Trusted Node (Elite)" : "Standard Clearance"}
