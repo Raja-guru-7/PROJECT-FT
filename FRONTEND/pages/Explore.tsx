@@ -26,18 +26,19 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 };
 
+// 🔥 FIX: Improved Map Updater that prevents Leaflet errors
 const MapUpdater = ({ center }: { center: { lat: number; lng: number } | null }) => {
   const map = useMap();
   useEffect(() => {
     if (center && typeof center.lat === 'number' && typeof center.lng === 'number') {
       map.flyTo([center.lat, center.lng], 13, { animate: true, duration: 1.5 });
-      setTimeout(() => { map.invalidateSize(); }, 100);
+      // Force map to recalculate its container size to avoid grey tiles / displacement
+      setTimeout(() => { map.invalidateSize(); }, 400);
     }
   }, [center, map]);
   return null;
 };
 
-// ✅ FIXED HeartButton - dispatches savedAssetsUpdated event
 const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ productId, initialSaved }) => {
   const [isHeartFilled, setIsHeartFilled] = useState(initialSaved);
 
@@ -63,7 +64,6 @@ const HeartButton: React.FC<{ productId: string; initialSaved: boolean }> = ({ p
       userObj.savedAssets = assets;
       localStorage.setItem('user', JSON.stringify(userObj));
 
-      // ✅ SavedAssets page க்கு notify பண்ணும்
       window.dispatchEvent(new Event('savedAssetsUpdated'));
     }
 
@@ -171,6 +171,9 @@ const Explore: React.FC = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [savedAssets, setSavedAssets] = useState<Set<string>>(new Set());
 
+  // 🔥 FIX: Erode Exact Coordinates
+  const DEFAULT_LOCATION = { lat: 11.3410, lng: 77.7172 };
+
   const fetchSavedAssets = () => {
     try {
       const localUserStr = localStorage.getItem('user');
@@ -185,7 +188,9 @@ const Explore: React.FC = () => {
     setIsLoading(true);
     try {
       const data = await api.getItems({
-        lat: userLocation?.lat, lng: userLocation?.lng, radius: maxDistance, query: searchQuery, category: selectedCategory || undefined
+        lat: userLocation?.lat || DEFAULT_LOCATION.lat,
+        lng: userLocation?.lng || DEFAULT_LOCATION.lng,
+        radius: maxDistance, query: searchQuery, category: selectedCategory || undefined
       });
       setItems(data);
     } finally { setIsLoading(false); }
@@ -195,21 +200,26 @@ const Explore: React.FC = () => {
     fetchItems();
     fetchSavedAssets();
 
-    // ✅ Listen for heart toggle updates from this page itself or SavedAssets
     const handleAssetsUpdate = () => fetchSavedAssets();
     window.addEventListener('savedAssetsUpdated', handleAssetsUpdate);
     return () => window.removeEventListener('savedAssetsUpdated', handleAssetsUpdate);
   }, [userLocation, selectedCategory, maxDistance]);
 
   const syncLocation = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setUserLocation(DEFAULT_LOCATION);
+      return;
+    }
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         setIsLocating(false);
       },
-      () => { setIsLocating(false); },
+      () => {
+        setUserLocation(DEFAULT_LOCATION);
+        setIsLocating(false);
+      },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
   };
@@ -227,18 +237,23 @@ const Explore: React.FC = () => {
         if (!token) { syncLocation(); return; }
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/user`, { headers: { 'x-auth-token': token } });
         const user = await res.json();
-        if (user?.location?.lat && user?.location?.lng) { setUserLocation({ lat: user.location.lat, lng: user.location.lng }); } else { syncLocation(); }
+        if (user?.location?.lat && user?.location?.lng) {
+          setUserLocation({ lat: user.location.lat, lng: user.location.lng });
+        } else {
+          syncLocation();
+        }
       } catch { syncLocation(); }
     };
     loadLocation();
   }, []);
 
   const itemsWithDistance = useMemo(() => {
+    const centerLat = userLocation?.lat || DEFAULT_LOCATION.lat;
+    const centerLng = userLocation?.lng || DEFAULT_LOCATION.lng;
+
     return items.map((item, index) => ({
       ...item,
-      calculatedDistance: (userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number')
-        ? calculateDistance(userLocation.lat, userLocation.lng, item.location.lat, item.location.lng)
-        : index * 0.3 + 0.1
+      calculatedDistance: calculateDistance(centerLat, centerLng, item.location.lat, item.location.lng)
     }));
   }, [items, userLocation]);
 
@@ -340,19 +355,19 @@ const Explore: React.FC = () => {
           <div className="py-20 sm:py-32 text-center"><Loader2 className="animate-spin mx-auto text-slate-400" size={40} /></div>
         ) : viewMode === 'map' ? (
           <div className="h-[400px] lg:h-[600px] w-full rounded-3xl sm:rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm relative z-10">
+            {/* 🔥 FIX: Added a key prop so Leaflet completely remounts when viewMode toggles */}
             <MapContainer
-              center={userLocation ? [userLocation.lat, userLocation.lng] : [11.3410, 77.7172]}
+              key={`map-${userLocation?.lat || DEFAULT_LOCATION.lat}`}
+              center={[userLocation?.lat || DEFAULT_LOCATION.lat, userLocation?.lng || DEFAULT_LOCATION.lng]}
               zoom={12}
               style={{ height: '100%', width: '100%' }}
             >
               <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-              {userLocation && <MapUpdater center={userLocation} />}
+              <MapUpdater center={userLocation || DEFAULT_LOCATION} />
 
-              {userLocation && (
-                <Marker position={[userLocation.lat, userLocation.lng]} draggable={true} eventHandlers={{ dragend: handleMarkerDragEnd }}>
-                  <Popup>You are here (Drag to adjust)</Popup>
-                </Marker>
-              )}
+              <Marker position={[userLocation?.lat || DEFAULT_LOCATION.lat, userLocation?.lng || DEFAULT_LOCATION.lng]} draggable={true} eventHandlers={{ dragend: handleMarkerDragEnd }}>
+                <Popup>You are here (Drag to adjust)</Popup>
+              </Marker>
 
               {filteredItems.map(item => (
                 <Marker key={item.id} position={[item.location.lat, item.location.lng]}>
