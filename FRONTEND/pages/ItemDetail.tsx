@@ -33,11 +33,23 @@ const ItemDetail: React.FC = () => {
     const fetchItemAndCheckOwner = async () => {
       if (!id) return;
       try {
-        const data = await api.getItemById(id);
-        setItem(data ?? null);
+        // 1. Fetch mapped data from existing API
+        const mappedData = await api.getItemById(id);
 
-        if (data) {
-          const dbPaymentMode = String((data as any).paymentMode || '').toLowerCase().trim();
+        // 🔥 THE ULTIMATE HACKER BYPASS 🔥
+        // api.ts file is secretly dropping the new deposit fields because it maps only old fields.
+        // We directly fetch the RAW database document to force the deposit amounts to come through!
+        const API_URL = import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com';
+        const rawResponse = await fetch(`${API_URL}/api/product/${id}`);
+        const rawData = await rawResponse.json();
+
+        // Merge raw backend data with frontend mapped data
+        const finalData = { ...mappedData, ...rawData, id: mappedData?.id || rawData?._id };
+
+        setItem(finalData ?? null);
+
+        if (finalData) {
+          const dbPaymentMode = String(finalData.paymentMode || '').toLowerCase().trim();
           if (dbPaymentMode.includes('escrow')) {
             setSelectedPaymentMode('escrow');
           } else {
@@ -67,8 +79,8 @@ const ItemDetail: React.FC = () => {
           } catch (e) { }
         }
 
-        const ownerId = String(data?.owner?._id || data?.owner?.id || data?.ownerId || data?.owner || '');
-        const ownerName = String(data?.ownerName || data?.owner?.name || '').toLowerCase().trim();
+        const ownerId = String(finalData?.owner?._id || finalData?.owner?.id || finalData?.ownerId || finalData?.owner || '');
+        const ownerName = String(finalData?.ownerName || finalData?.owner?.name || '').toLowerCase().trim();
 
         if ((loggedInId && ownerId && loggedInId === ownerId) ||
           (loggedInName && ownerName && loggedInName === ownerName)) {
@@ -118,7 +130,7 @@ const ItemDetail: React.FC = () => {
   const rentalFee = (item?.pricePerDay || 0) * days;
   const trustBonus = 10;
 
-  // 🔥 DIRECT OVERRIDE EXTRACTION: No more if/else skipping
+  // 🔥 DIRECT EXTRACTION FROM RAW DATA
   const escrowDeposit = Number(item?.escrowDepositAmount) || Number(item?.insuranceDeposit) || Number(item?.securityDeposit) || 0;
 
   const totalDue = rentalFee + (selectedPaymentMode === 'escrow' ? escrowDeposit : 0) - trustBonus;
@@ -167,7 +179,8 @@ const ItemDetail: React.FC = () => {
             escrowDepositAmount: selectedPaymentMode === 'escrow' ? escrowDeposit : 0
           };
 
-          const apiRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/transaction/create`, {
+          const API_URL = import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com';
+          const apiRes = await fetch(`${API_URL}/api/transaction/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify(payload)
@@ -326,15 +339,6 @@ const ItemDetail: React.FC = () => {
             </motion.div>
           </div>
         </div>
-
-        {/* 🔥 HACKER DEBUG BOX - Send me this screenshot 🔥 */}
-        <div className="mt-12 p-4 bg-black border border-green-500 rounded-xl overflow-hidden shadow-2xl">
-          <p className="text-green-400 font-bold mb-2 uppercase text-xs tracking-widest">Debug Output - Send this screenshot</p>
-          <pre className="text-green-300 text-[10px] sm:text-xs overflow-x-auto break-all whitespace-pre-wrap font-mono">
-            {JSON.stringify(item, null, 2)}
-          </pre>
-        </div>
-
       </div>
     </div>
   );
