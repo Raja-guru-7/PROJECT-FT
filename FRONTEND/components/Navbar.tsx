@@ -121,11 +121,10 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
           </Link>
 
           {/* Profile Section */}
-          {/* FIX: Added position relative here, dropdown will be anchored to this div */}
           <div className="flex items-center gap-3 relative" ref={dropdownRef}>
-            <div className="hidden md:flex flex-col items-end gap-0.5">
+            <div className="hidden md:flex flex-col items-end justify-center">
               <span className="text-sm font-semibold text-slate-800">{currentUser ? currentUser.name : '...'}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userRole} MODE</span>
+              {/* 🔥 REMOVED THE MODE TEXT HERE 🔥 */}
             </div>
 
             <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative hover:scale-105 transition-transform">
@@ -137,7 +136,6 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
               <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
             </button>
 
-            {/* FIX: Changed right-0 positioning so dropdown aligns under the avatar perfectly */}
             {isProfileOpen && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: -8 }}
