@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { Transaction, User } from '../types';
+import { Transaction, User, Item } from '../types';
 import { ArrowRight, Clock, TrendingUp, PlusCircle, CheckCircle2, ShieldCheck, Loader2, Cpu, Lock, AlertCircle, MessageSquare, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,9 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
   const [tab, setTab] = useState<'renting' | 'lending'>(role === 'OWNER' ? 'lending' : 'renting');
 
   const [allTxs, setAllTxs] = useState<Transaction[]>([]);
+  // 🔥 NEW STATE FOR OWNER ASSETS 🔥
+  const [myAssets, setMyAssets] = useState<Item[]>([]);
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedAssets, setSavedAssets] = useState<any[]>([]);
@@ -46,11 +49,13 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [rData, oData, userData, savedAssetsData] = await Promise.all([
+      // 🔥 ADDED api.getUserProducts() CALL 🔥
+      const [rData, oData, userData, savedAssetsData, userProductsData] = await Promise.all([
         api.getTransactions('RENTER').catch(() => []),
         api.getTransactions('OWNER').catch(() => []),
         api.getCurrentUser().catch(() => null),
-        api.getSavedAssets().catch(() => [])
+        api.getSavedAssets().catch(() => []),
+        api.getUserProducts().catch(() => [])
       ]);
 
       const combined = [...rData, ...oData];
@@ -59,6 +64,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
       setAllTxs(unique as any);
       if (userData) setCurrentUser(userData);
       setSavedAssets(savedAssetsData);
+      setMyAssets(userProductsData);
+
     } catch (err) {
       console.error('Terminal error reading ledger');
     } finally {
@@ -126,101 +133,175 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                 <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center py-20 sm:py-32">
                   <Loader2 className="animate-spin text-slate-400 sm:w-10 sm:h-10" size={32} />
                 </motion.div>
-              ) : filteredTransactions.length > 0 ? (
-                filteredTransactions.map((tx: any, i: number) => {
-                  const isOwner = tab === 'lending';
-                  const needsHandover = ['REQUESTED', 'PENDING_OTP', 'HANDOVER_IN_PROGRESS', 'OTP_VERIFIED', 'IN_PROGRESS'].includes(tx.status);
-                  const needsReturn = ['RETURN_INITIATED', 'RETURN_IN_PROGRESS'].includes(tx.status);
-                  const isReadyForReturn = ['ACTIVE', 'HANDOVER_COMPLETED', 'PICKED_UP'].includes(tx.status);
+              ) : tab === 'renting' ? (
+                /* RENTING TAB CONTENT (Original logic) */
+                filteredTransactions.length > 0 ? (
+                  filteredTransactions.map((tx: any, i: number) => {
+                    const isOwner = false;
+                    const needsHandover = ['REQUESTED', 'PENDING_OTP', 'HANDOVER_IN_PROGRESS', 'OTP_VERIFIED', 'IN_PROGRESS'].includes(tx.status);
+                    const needsReturn = ['RETURN_INITIATED', 'RETURN_IN_PROGRESS'].includes(tx.status);
+                    const isReadyForReturn = ['ACTIVE', 'HANDOVER_COMPLETED', 'PICKED_UP'].includes(tx.status);
 
-                  return (
-                    <motion.div key={tx._id || tx.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                      <div
-                        onClick={() => {
-                          if (tx.status === 'ACTIVE' || tx.status.includes('RETURN') || tx.status === 'COMPLETED') {
-                            navigate(`/return/${tx._id || tx.id}`);
-                          } else {
-                            navigate(`/handover/${tx._id || tx.id}`);
-                          }
-                        }}
-                        className="p-5 sm:p-6 md:p-8 bg-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
-                      >
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
-                          <div className="w-full sm:w-auto">
-                            <div className="inline-block px-2.5 sm:px-3 py-1 mb-2 sm:mb-3 rounded-full bg-slate-100 border border-slate-200 group-hover:bg-black group-hover:border-black transition-colors">
-                              <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-slate-600 uppercase group-hover:text-white transition-colors">
-                                {tx.status.replace(/_/g, ' ')}
-                              </span>
+                    return (
+                      <motion.div key={tx._id || tx.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <div
+                          onClick={() => {
+                            if (tx.status === 'ACTIVE' || tx.status.includes('RETURN') || tx.status === 'COMPLETED') {
+                              navigate(`/return/${tx._id || tx.id}`);
+                            } else {
+                              navigate(`/handover/${tx._id || tx.id}`);
+                            }
+                          }}
+                          className="p-5 sm:p-6 md:p-8 bg-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                        >
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+                            <div className="w-full sm:w-auto">
+                              <div className="inline-block px-2.5 sm:px-3 py-1 mb-2 sm:mb-3 rounded-full bg-slate-100 border border-slate-200 group-hover:bg-black group-hover:border-black transition-colors">
+                                <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-slate-600 uppercase group-hover:text-white transition-colors">
+                                  {tx.status.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                              <h3 className="text-lg sm:text-xl font-semibold text-slate-800 leading-tight group-hover:text-black transition-colors">{tx.itemTitle}</h3>
                             </div>
-                            <h3 className="text-lg sm:text-xl font-semibold text-slate-800 leading-tight group-hover:text-black transition-colors">{tx.itemTitle}</h3>
-                          </div>
-                          <div className="text-left sm:text-right bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 w-full sm:w-auto mt-2 sm:mt-0">
-                            <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5 sm:mb-1">Value</p>
-                            <p className="text-lg sm:text-xl font-bold text-slate-800">₹{tx.totalAmount}</p>
-                          </div>
-                        </div>
-
-                        <div className="pt-4 sm:pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500">
-                            <Clock size={14} className="sm:w-4 sm:h-4" />
-                            <span>Ends: {tx.endDate ? new Date(tx.endDate).toLocaleDateString() : 'TBD'}</span>
+                            <div className="text-left sm:text-right bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 w-full sm:w-auto mt-2 sm:mt-0">
+                              <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5 sm:mb-1">Value</p>
+                              <p className="text-lg sm:text-xl font-bold text-slate-800">₹{tx.totalAmount}</p>
+                            </div>
                           </div>
 
-                          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                            {needsReturn ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/return/${tx._id || tx.id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
-                                {isOwner ? 'Verify Return' : 'Return Tracking'}
-                              </button>
-                            ) : needsHandover ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx._id || tx.id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
-                                {isOwner ? 'Manage Handover' : 'Complete Handover'}
-                              </button>
-                            ) : isReadyForReturn ? (
-                              <button onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  await api.initiateReturn(tx._id || tx.id);
-                                  navigate(`/return/${tx._id || tx.id}`);
-                                } catch (err) { alert('Failed to initiate return.'); }
-                              }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
-                                Initiate Return
-                              </button>
-                            ) : (
-                              <button onClick={(e) => {
-                                e.stopPropagation();
-                                if (tx.status === 'ACTIVE' || tx.status.includes('RETURN') || tx.status === 'COMPLETED') {
-                                  navigate(`/return/${tx._id || tx.id}`);
-                                } else {
-                                  navigate(`/handover/${tx._id || tx.id}`);
-                                }
-                              }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-slate-100 text-slate-700 rounded-full text-xs sm:text-sm font-medium hover:bg-slate-200 transition-colors text-center">
-                                Details
-                              </button>
-                            )}
+                          <div className="pt-4 sm:pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500">
+                              <Clock size={14} className="sm:w-4 sm:h-4" />
+                              <span>Ends: {tx.endDate ? new Date(tx.endDate).toLocaleDateString() : 'TBD'}</span>
+                            </div>
+
+                            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                              {needsReturn ? (
+                                <button onClick={(e) => { e.stopPropagation(); navigate(`/return/${tx._id || tx.id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
+                                  {isOwner ? 'Verify Return' : 'Return Tracking'}
+                                </button>
+                              ) : needsHandover ? (
+                                <button onClick={(e) => { e.stopPropagation(); navigate(`/handover/${tx._id || tx.id}`); }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
+                                  {isOwner ? 'Manage Handover' : 'Complete Handover'}
+                                </button>
+                              ) : isReadyForReturn ? (
+                                <button onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await api.initiateReturn(tx._id || tx.id);
+                                    navigate(`/return/${tx._id || tx.id}`);
+                                  } catch (err) { alert('Failed to initiate return.'); }
+                                }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
+                                  Initiate Return
+                                </button>
+                              ) : (
+                                <button onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (tx.status === 'ACTIVE' || tx.status.includes('RETURN') || tx.status === 'COMPLETED') {
+                                    navigate(`/return/${tx._id || tx.id}`);
+                                  } else {
+                                    navigate(`/handover/${tx._id || tx.id}`);
+                                  }
+                                }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-slate-100 text-slate-700 rounded-full text-xs sm:text-sm font-medium hover:bg-slate-200 transition-colors text-center">
+                                  Details
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  );
-                })
+                      </motion.div>
+                    );
+                  })
+                ) : (
+                  <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-slate-100 p-6 sm:p-16 rounded-[1.5rem] sm:rounded-[2rem] text-center shadow-sm">
+                    <p className="text-xs sm:text-sm font-medium text-slate-500 mb-4 px-4">No Active Contracts Found</p>
+                    <button onClick={() => navigate('/explore')} className="px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 w-full sm:w-auto">Explore Items</button>
+                  </motion.div>
+                )
               ) : (
-                <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-slate-100 p-6 sm:p-16 rounded-[1.5rem] sm:rounded-[2rem] text-center shadow-sm">
-                  {tab === 'lending' ? (
-                    <>
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 border border-slate-100">
-                        <PlusCircle className="text-slate-400 w-6 h-6 sm:w-8 sm:h-8" />
-                      </div>
-                      <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-1 sm:mb-2">No Assets Deployed</h3>
-                      <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6">Start sharing your items with the community.</p>
-                      <button onClick={() => navigate('/add')} className="px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 w-full sm:w-auto">Deploy Asset</button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs sm:text-sm font-medium text-slate-500 mb-4 px-4">No Active Contracts Found</p>
-                      <button onClick={() => navigate('/explore')} className="px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 w-full sm:w-auto">Explore Items</button>
-                    </>
-                  )}
-                </motion.div>
+                /* 🔥 LENDING TAB CONTENT (New Logic displaying Assets) 🔥 */
+                myAssets.length > 0 ? (
+                  myAssets.map((asset: any, i: number) => {
+
+                    // See if this asset is currently in an active transaction
+                    const activeTxForAsset = allTxs.find((tx: any) =>
+                      (tx.itemId === asset.id || tx.itemId === asset._id) &&
+                      !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(tx.status)
+                    );
+
+                    return (
+                      <motion.div key={asset._id || asset.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                        <div
+                          onClick={() => {
+                            if (activeTxForAsset) {
+                              if (activeTxForAsset.status === 'ACTIVE' || activeTxForAsset.status.includes('RETURN')) {
+                                navigate(`/return/${activeTxForAsset._id || activeTxForAsset.id}`);
+                              } else {
+                                navigate(`/handover/${activeTxForAsset._id || activeTxForAsset.id}`);
+                              }
+                            } else {
+                              navigate(`/item/${asset.id || asset._id}`);
+                            }
+                          }}
+                          className="p-5 sm:p-6 md:p-8 bg-white rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                        >
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+                            <div className="w-full sm:w-auto">
+                              <div className={`inline-block px-2.5 sm:px-3 py-1 mb-2 sm:mb-3 rounded-full border transition-colors ${activeTxForAsset ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+                                <span className={`text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-colors ${activeTxForAsset ? 'text-amber-700' : 'text-green-700'}`}>
+                                  {activeTxForAsset ? `RENTED - ${activeTxForAsset.status.replace(/_/g, ' ')}` : 'AVAILABLE FOR RENT'}
+                                </span>
+                              </div>
+                              <h3 className="text-lg sm:text-xl font-semibold text-slate-800 leading-tight group-hover:text-black transition-colors">{asset.title}</h3>
+                            </div>
+                            <div className="text-left sm:text-right bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 w-full sm:w-auto mt-2 sm:mt-0">
+                              <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5 sm:mb-1">Rate</p>
+                              <p className="text-lg sm:text-xl font-bold text-slate-800">₹{asset.pricePerDay}<span className="text-xs text-slate-500 font-medium">/day</span></p>
+                            </div>
+                          </div>
+
+                          <div className="pt-4 sm:pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500">
+                              <ShieldCheck size={14} className="sm:w-4 sm:h-4 text-emerald-500" />
+                              <span>{asset.paymentMode === 'escrow' ? 'Escrow Protected' : 'Standard Protection'}</span>
+                            </div>
+
+                            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                              {activeTxForAsset ? (
+                                <button onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (activeTxForAsset.status === 'ACTIVE' || activeTxForAsset.status.includes('RETURN')) {
+                                    navigate(`/return/${activeTxForAsset._id || activeTxForAsset.id}`);
+                                  } else {
+                                    navigate(`/handover/${activeTxForAsset._id || activeTxForAsset.id}`);
+                                  }
+                                }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 transition-colors text-center">
+                                  Manage Contract
+                                </button>
+                              ) : (
+                                <button onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/item/${asset.id || asset._id}`);
+                                }} className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-slate-100 text-slate-700 rounded-full text-xs sm:text-sm font-medium hover:bg-slate-200 transition-colors text-center">
+                                  View Listing
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                ) : (
+                  <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-slate-100 p-6 sm:p-16 rounded-[1.5rem] sm:rounded-[2rem] text-center shadow-sm">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 border border-slate-100">
+                      <PlusCircle className="text-slate-400 w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-1 sm:mb-2">No Assets Deployed</h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6">Start sharing your items with the community.</p>
+                    <button onClick={() => navigate('/add')} className="px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white rounded-full text-xs sm:text-sm font-medium hover:bg-slate-800 w-full sm:w-auto">Deploy Asset</button>
+                  </motion.div>
+                )
               )}
             </AnimatePresence>
           </div>

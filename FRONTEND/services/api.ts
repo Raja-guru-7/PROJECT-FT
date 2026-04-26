@@ -180,7 +180,7 @@ class ApiService {
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
         imageUrl: p.imageUrl || '',
-        paymentMode: p.paymentMode || 'normal', // ✅ FIX
+        paymentMode: p.paymentMode || 'normal',
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
@@ -190,6 +190,48 @@ class ApiService {
     } catch (err) {
       console.error('getItems error:', err);
       return MOCK_ITEMS;
+    }
+  }
+
+  // 🔥 NEW API FIX: Fetch all products listed by the current user 🔥
+  async getUserProducts(): Promise<Item[]> {
+    try {
+      // Re-using /product/all but filtering by current user's ID
+      // If your backend has a specific /product/my route, change this URL.
+      const user = await this.getCurrentUser();
+      const res = await fetch(`${BASE_URL}/product/all`, { headers: this.getHeaders() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg);
+
+      const userProducts = json.filter((p: any) =>
+        String(p.owner?._id || p.owner) === String(user.id)
+      );
+
+      return userProducts.map((p: any) => ({
+        id: p._id,
+        owner: p.owner,
+        ownerId: p.owner?._id || p.owner,
+        ownerName: p.owner?.name || 'Unknown',
+        ownerTrustScore: p.owner?.trustScore || 30,
+        ownerAvatar: p.owner?.avatar || '',
+        title: p.title,
+        description: p.description,
+        category: p.category,
+        pricePerDay: p.pricePerDay,
+        depositAmount: p.depositAmount || 0,
+        insuranceFee: p.insuranceFee || 0,
+        imageUrl: p.imageUrl || '',
+        paymentMode: p.paymentMode || 'normal',
+        status: p.status || (p.isAvailable ? 'AVAILABLE' : 'RENTED'), // For UI rendering
+        location: {
+          lat: p.location?.coordinates?.[1] || 11.3410,
+          lng: p.location?.coordinates?.[0] || 77.7172,
+          address: p.location?.address || 'Erode, TN',
+        },
+      }));
+    } catch (err) {
+      console.error('getUserProducts error:', err);
+      return [];
     }
   }
 
@@ -212,7 +254,7 @@ class ApiService {
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
         imageUrl: p.imageUrl || '',
-        paymentMode: p.paymentMode || 'normal', // ✅ FIX — இது தான் missing-ஆ இருந்தது
+        paymentMode: p.paymentMode || 'normal',
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
@@ -420,7 +462,7 @@ class ApiService {
         depositAmount: p.depositAmount || 0,
         insuranceFee: p.insuranceFee || 0,
         imageUrl: p.imageUrl || '',
-        paymentMode: p.paymentMode || 'normal', // ✅ FIX
+        paymentMode: p.paymentMode || 'normal',
         location: {
           lat: p.location?.coordinates?.[1] || 11.3410,
           lng: p.location?.coordinates?.[0] || 77.7172,
