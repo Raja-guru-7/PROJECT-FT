@@ -1,16 +1,15 @@
 import { signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider } from "../src/firebase"; // Unga path thevaiya padi maathikonga
+import { auth, googleProvider } from "../src/firebase";
 
-// 🔥 THE FIX: Dynamic API URL (Vite environment variable support)
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+// 🔥 THE ULTIMATE FIX: Direct-aah Live Backend URL-ah potachu! 
+// Fallback (localhost) ellam eduthutom.
+const API_URL = 'https://aroundu-backend-hd26.onrender.com';
 
 export const signInWithGoogle = async (): Promise<{ email: string; name: string; googleId: string; avatar: string; redirectTo: string; token?: string }> => {
   const result = await signInWithPopup(auth, googleProvider);
   const user = result.user;
 
-  // Call backend to create/update user and get MongoDB userId
   try {
-    // 🔥 THE FIX: Hardcoded localhost-ah thookittu API_URL variable pottachu
     const response = await fetch(`${API_URL}/api/auth/google`, {
       method: 'POST',
       headers: {
@@ -27,12 +26,10 @@ export const signInWithGoogle = async (): Promise<{ email: string; name: string;
     const data = await response.json();
 
     if (response.ok) {
-      // Save token if available (for verified users)
       if (data.token) {
         localStorage.setItem('token', data.token);
       }
 
-      // Save MongoDB userId for KYC
       localStorage.setItem('pendingUserId', data.userId);
       localStorage.setItem('tempGoogleData', JSON.stringify({
         email: user.email || '',
@@ -41,13 +38,12 @@ export const signInWithGoogle = async (): Promise<{ email: string; name: string;
         avatar: user.photoURL || ''
       }));
 
-      // Return redirectTo for frontend navigation
       return {
         email: user.email || '',
         name: user.displayName || '',
         googleId: user.uid,
         avatar: user.photoURL || '',
-        redirectTo: data.redirectTo || '/kyc-verification',
+        redirectTo: data.redirectTo || '/kyc',
         token: data.token
       };
     } else {
