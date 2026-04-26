@@ -115,14 +115,22 @@ const ItemDetail: React.FC = () => {
     });
   };
 
-  // 🔥 CALCULATION FIX: 
-  // 1. Hardcoded 50 fallback ah thookiyachu
-  // 2. Exact ah DB la irunthu vara securityDeposit ah ulla eduthachu
+  // 🔥 THE FIX: Thorough check for the deposit amount based on AddItem logic
   const rentalFee = (item?.pricePerDay || 0) * days;
   const trustBonus = 10;
 
-  // Multiple variable keys handle panniruken, just in case backend per ah mathi iruntha kooda catch agidum.
-  const escrowDeposit = Number(item?.securityDeposit) || Number(item?.escrowDepositAmount) || Number(item?.insuranceDeposit) || Number(item?.depositAmount) || 0;
+  // Since AddItem sends BOTH insuranceDeposit and escrowDepositAmount, we check both carefully.
+  // We use parseFloat to ensure strings like "1000" are converted correctly.
+  let escrowDeposit = 0;
+  if (item) {
+    if (item.insuranceDeposit) escrowDeposit = parseFloat(item.insuranceDeposit);
+    else if (item.escrowDepositAmount) escrowDeposit = parseFloat(item.escrowDepositAmount);
+    else if (item.securityDeposit) escrowDeposit = parseFloat(item.securityDeposit);
+    else if (item.depositAmount) escrowDeposit = parseFloat(item.depositAmount);
+  }
+
+  // Ensure it's never NaN
+  if (isNaN(escrowDeposit)) escrowDeposit = 0;
 
   const totalDue = rentalFee + (selectedPaymentMode === 'escrow' ? escrowDeposit : 0) - trustBonus;
 
@@ -157,7 +165,6 @@ const ItemDetail: React.FC = () => {
       image: "https://img.icons8.com/fluency/128/shield.png",
       handler: async function (response: any) {
         try {
-
           if (selectedPaymentMode === 'escrow') {
             localStorage.setItem('demo_escrow_amount', String(escrowDeposit));
           }
