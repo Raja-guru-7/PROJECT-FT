@@ -16,7 +16,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
   const [tab, setTab] = useState<'renting' | 'lending'>(role === 'OWNER' ? 'lending' : 'renting');
 
   const [allTxs, setAllTxs] = useState<Transaction[]>([]);
-  // 🔥 NEW STATE FOR OWNER ASSETS 🔥
   const [myAssets, setMyAssets] = useState<Item[]>([]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -49,7 +48,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      // 🔥 ADDED api.getUserProducts() CALL 🔥
       const [rData, oData, userData, savedAssetsData, userProductsData] = await Promise.all([
         api.getTransactions('RENTER').catch(() => []),
         api.getTransactions('OWNER').catch(() => []),
@@ -219,11 +217,10 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                   </motion.div>
                 )
               ) : (
-                /* 🔥 LENDING TAB CONTENT (New Logic displaying Assets) 🔥 */
+                /* 🔥 LENDING TAB CONTENT 🔥 */
                 myAssets.length > 0 ? (
                   myAssets.map((asset: any, i: number) => {
 
-                    // See if this asset is currently in an active transaction
                     const activeTxForAsset = allTxs.find((tx: any) =>
                       (tx.itemId === asset.id || tx.itemId === asset._id) &&
                       !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(tx.status)
@@ -324,7 +321,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
                     <TrendingUp size={12} className="sm:w-3.5 sm:h-3.5" /> Score
                   </div>
                 </div>
-                <div className="text-[10px] sm:text-xs font-semibold bg-slate-50 text-slate-700 p-2.5 sm:p-3 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 border border-slate-100 group-hover:bg-slate-100 transition-colors">
+                {/* 🔥 FIX: Explicitly made text-slate-900 for visibility and added hover pop 🔥 */}
+                <div className="text-[10px] sm:text-xs font-semibold bg-slate-50 text-slate-900 p-2.5 sm:p-3 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 border border-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-colors">
                   <CheckCircle2 size={14} className={`sm:w-4 sm:h-4 ${(currentUser?.trustScore || 30) >= 80 ? "text-green-500" : "text-amber-500"}`} />
                   {(currentUser?.trustScore || 30) >= 80 ? "Trusted Node (Elite)" : "Standard Clearance"}
                 </div>
