@@ -115,22 +115,11 @@ const ItemDetail: React.FC = () => {
     });
   };
 
-  // 🔥 THE FIX: Thorough check for the deposit amount based on AddItem logic
   const rentalFee = (item?.pricePerDay || 0) * days;
   const trustBonus = 10;
 
-  // Since AddItem sends BOTH insuranceDeposit and escrowDepositAmount, we check both carefully.
-  // We use parseFloat to ensure strings like "1000" are converted correctly.
-  let escrowDeposit = 0;
-  if (item) {
-    if (item.insuranceDeposit) escrowDeposit = parseFloat(item.insuranceDeposit);
-    else if (item.escrowDepositAmount) escrowDeposit = parseFloat(item.escrowDepositAmount);
-    else if (item.securityDeposit) escrowDeposit = parseFloat(item.securityDeposit);
-    else if (item.depositAmount) escrowDeposit = parseFloat(item.depositAmount);
-  }
-
-  // Ensure it's never NaN
-  if (isNaN(escrowDeposit)) escrowDeposit = 0;
+  // 🔥 DIRECT OVERRIDE EXTRACTION: No more if/else skipping
+  const escrowDeposit = Number(item?.escrowDepositAmount) || Number(item?.insuranceDeposit) || Number(item?.securityDeposit) || 0;
 
   const totalDue = rentalFee + (selectedPaymentMode === 'escrow' ? escrowDeposit : 0) - trustBonus;
 
@@ -337,6 +326,15 @@ const ItemDetail: React.FC = () => {
             </motion.div>
           </div>
         </div>
+
+        {/* 🔥 HACKER DEBUG BOX - Send me this screenshot 🔥 */}
+        <div className="mt-12 p-4 bg-black border border-green-500 rounded-xl overflow-hidden shadow-2xl">
+          <p className="text-green-400 font-bold mb-2 uppercase text-xs tracking-widest">Debug Output - Send this screenshot</p>
+          <pre className="text-green-300 text-[10px] sm:text-xs overflow-x-auto break-all whitespace-pre-wrap font-mono">
+            {JSON.stringify(item, null, 2)}
+          </pre>
+        </div>
+
       </div>
     </div>
   );
