@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Video, Search, Loader2, X, Play, FileText } from 'lucide-react';
+import { ChevronLeft, Video, Search, Loader2, X, Play, FileText, Printer } from 'lucide-react';
 import { api } from '../services/api';
 import { Transaction, User } from '../types';
 
@@ -17,6 +17,10 @@ export const ActivityLog: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [videoModal, setVideoModal] = useState<{ url: string; label: string } | null>(null);
+
+  // 🔥 PUDHU FEATURE: Receipt Modal State
+  const [receiptModal, setReceiptModal] = useState<Transaction | null>(null);
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -50,6 +54,7 @@ export const ActivityLog: React.FC = () => {
       <button type="button" onClick={() => navigate(-1)} className="absolute top-4 sm:top-8 left-4 md:left-8 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors group z-10">
         <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
       </button>
+
       <div className="max-w-[1200px] mx-auto px-4 md:px-8 pt-14 sm:pt-12 pb-8">
 
         {/* Video Modal */}
@@ -64,6 +69,59 @@ export const ActivityLog: React.FC = () => {
               </div>
               <div className="bg-slate-900 w-full flex justify-center">
                 <video src={videoModal.url} controls autoPlay className="w-full max-h-[60vh]" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 🔥 NEAT RECEIPT MODAL 🔥 */}
+        {receiptModal && (
+          <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+
+              {/* Receipt Top Design */}
+              <div className="h-3 w-full bg-slate-900" style={{ backgroundImage: 'radial-gradient(circle at 10px 0, transparent 10px, #0f172a 11px)', backgroundSize: '20px 12px', backgroundRepeat: 'repeat-x' }}></div>
+
+              <div className="p-6 sm:p-8">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">AroundU</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Transaction Receipt</p>
+                  </div>
+                  <button onClick={() => setReceiptModal(null)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between items-center pb-4 border-b border-dashed border-slate-200">
+                    <span className="text-xs sm:text-sm font-medium text-slate-500">Transaction ID</span>
+                    <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-800">{receiptModal.id || receiptModal._id}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-4 border-b border-dashed border-slate-200">
+                    <span className="text-xs sm:text-sm font-medium text-slate-500">Item</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800 text-right max-w-[150px] truncate">{receiptModal.itemTitle}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-4 border-b border-dashed border-slate-200">
+                    <span className="text-xs sm:text-sm font-medium text-slate-500">Status</span>
+                    {getStatusBadge(receiptModal.status)}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Payment Mode</span>
+                    <span className="text-[10px] font-bold text-slate-700 bg-white px-2 py-1 rounded-md border border-slate-200">
+                      {((receiptModal as any).transactionType === 'escrow' ? '🛡️ Escrow Protected' : 'Standard Payment')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-end mt-4 pt-4 border-t border-slate-200">
+                    <span className="text-sm font-black text-slate-900 uppercase">Total Paid</span>
+                    <span className="text-3xl font-black text-slate-900">₹{receiptModal.totalAmount}</span>
+                  </div>
+                </div>
+
+                <button onClick={() => window.print()} className="w-full py-3.5 bg-black text-white rounded-full font-bold text-xs sm:text-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-md">
+                  <Printer size={16} /> Print / Save PDF
+                </button>
               </div>
             </div>
           </div>
@@ -135,9 +193,9 @@ export const ActivityLog: React.FC = () => {
                           <td className="px-4 sm:px-6 py-4 sm:py-5 text-right flex flex-col items-end gap-2">
                             <p className="font-bold text-slate-800 text-sm sm:text-base">₹{tx.totalAmount}</p>
 
-                            {/* 🔥 NEW RECEIPT BUTTON 🔥 */}
+                            {/* 🔥 RECEIPT MODAL TRIGGER BUTTON 🔥 */}
                             <button
-                              onClick={() => navigate(`/receipt/${tx.id || tx._id}`)}
+                              onClick={() => setReceiptModal(tx)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg text-[10px] sm:text-xs font-bold transition-all shadow-sm active:scale-95"
                             >
                               <FileText size={14} />

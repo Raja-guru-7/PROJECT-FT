@@ -33,17 +33,12 @@ const ItemDetail: React.FC = () => {
     const fetchItemAndCheckOwner = async () => {
       if (!id) return;
       try {
-        // 1. Fetch mapped data from existing API
         const mappedData = await api.getItemById(id);
 
-        // 🔥 THE ULTIMATE HACKER BYPASS 🔥
-        // api.ts file is secretly dropping the new deposit fields because it maps only old fields.
-        // We directly fetch the RAW database document to force the deposit amounts to come through!
         const API_URL = import.meta.env.VITE_API_URL || 'https://aroundu-backend-hd26.onrender.com';
         const rawResponse = await fetch(`${API_URL}/api/product/${id}`);
         const rawData = await rawResponse.json();
 
-        // Merge raw backend data with frontend mapped data
         const finalData = { ...mappedData, ...rawData, id: mappedData?.id || rawData?._id };
 
         setItem(finalData ?? null);
@@ -130,7 +125,6 @@ const ItemDetail: React.FC = () => {
   const rentalFee = (item?.pricePerDay || 0) * days;
   const trustBonus = 10;
 
-  // 🔥 DIRECT EXTRACTION FROM RAW DATA
   const escrowDeposit = Number(item?.escrowDepositAmount) || Number(item?.insuranceDeposit) || Number(item?.securityDeposit) || 0;
 
   const totalDue = rentalFee + (selectedPaymentMode === 'escrow' ? escrowDeposit : 0) - trustBonus;
@@ -232,6 +226,9 @@ const ItemDetail: React.FC = () => {
   const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.ownerName || item.owner?.name || 'Unknown')}&background=0f172a&color=fff&size=128`;
   const ownerAvatar = item.ownerAvatar || fallbackAvatar;
 
+  // 🔥 LOCATION FORMATTING FIX 🔥
+  const itemLocationStr = item.locationAddress || (item.location?.address) || "Location not provided";
+
   return (
     <div className="bg-[#F5F5F7] min-h-screen z-10 pt-4 sm:pt-8 pb-24 relative">
       <button onClick={() => navigate('/explore')} className="absolute top-4 left-4 flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 z-20 md:hidden bg-white/80 backdrop-blur px-3 py-1.5 rounded-full shadow-sm"><ChevronLeft size={16} /> Back</button>
@@ -253,18 +250,26 @@ const ItemDetail: React.FC = () => {
               <p className="font-semibold text-slate-400 mb-1 text-[10px] sm:text-xs uppercase tracking-wide">{item.category}</p>
               <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-slate-800 mb-3 leading-tight">{item.title}</h1>
 
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-[10px] sm:text-xs mb-4 shadow-sm border ${selectedPaymentMode === 'escrow' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                {selectedPaymentMode === 'escrow' ? <ShieldCheck size={14} /> : <CreditCard size={14} />}
-                {selectedPaymentMode === 'escrow' ? 'Strict Escrow Protected' : 'Standard Payment'}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-[10px] sm:text-xs shadow-sm border ${selectedPaymentMode === 'escrow' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                  {selectedPaymentMode === 'escrow' ? <ShieldCheck size={14} /> : <CreditCard size={14} />}
+                  {selectedPaymentMode === 'escrow' ? 'Strict Escrow Protected' : 'Standard Payment'}
+                </div>
+
+                {/* 🔥 NEW LOCATION BADGE 🔥 */}
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium text-[10px] sm:text-xs shadow-sm border bg-blue-50 text-blue-700 border-blue-200 max-w-[200px] sm:max-w-xs truncate">
+                  <MapPin size={14} className="shrink-0" />
+                  <span className="truncate">{itemLocationStr}</span>
+                </div>
               </div>
 
-              <div className="relative pl-4 sm:pl-6 border-l-2 sm:border-l-4 border-slate-200">
+              <div className="relative pl-4 sm:pl-6 border-l-2 sm:border-l-4 border-slate-200 mt-6">
                 <p className="text-slate-600 leading-relaxed max-w-2xl text-xs sm:text-sm lg:text-base">{item.description}</p>
               </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <div style={cardStyle} className="p-4 sm:p-6">
+              <div style={cardStyle} className="p-4 sm:p-6 mt-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <img src={ownerAvatar} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-100" alt={item.ownerName} />
