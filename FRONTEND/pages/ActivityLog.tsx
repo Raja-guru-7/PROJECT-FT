@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Video, Search, Loader2, X, Play } from 'lucide-react';
+import { ChevronLeft, Video, Search, Loader2, X, Play, FileText } from 'lucide-react';
 import { api } from '../services/api';
 import { Transaction, User } from '../types';
 
@@ -91,14 +91,13 @@ export const ActivityLog: React.FC = () => {
               <table className="w-full text-left border-collapse" style={{ minWidth: '700px' }}>
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    {['Item / Transaction ID', 'Proofs', 'Status', 'Amount'].map((h, i) => (
+                    {['Item / Transaction ID', 'Proofs', 'Status', 'Amount & Action'].map((h, i) => (
                       <th key={h} className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap"
                         style={{ textAlign: i === 3 ? 'right' : 'left' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {/* 👇 FIX: Added proper parentheses around the map logic to fix the ts(1005) error 👇 */}
                   {filteredLogs.length > 0 ? (
                     filteredLogs.map(tx => {
                       const currentUserIdStr = String(currentUser?._id || currentUser?.id);
@@ -133,8 +132,18 @@ export const ActivityLog: React.FC = () => {
                               </button>
                             )}
                           </td>
-                          <td className="px-4 sm:px-6 py-4 sm:py-5 text-right">
+                          <td className="px-4 sm:px-6 py-4 sm:py-5 text-right flex flex-col items-end gap-2">
                             <p className="font-bold text-slate-800 text-sm sm:text-base">₹{tx.totalAmount}</p>
+
+                            {/* 🔥 NEW RECEIPT BUTTON 🔥 */}
+                            <button
+                              onClick={() => navigate(`/receipt/${tx.id || tx._id}`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg text-[10px] sm:text-xs font-bold transition-all shadow-sm active:scale-95"
+                            >
+                              <FileText size={14} />
+                              View Receipt
+                            </button>
+
                           </td>
                         </tr>
                       );
