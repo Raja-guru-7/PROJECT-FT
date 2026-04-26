@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShieldCheck, Settings, Heart, History, LogOut, UserCircle, Repeat
+  ShieldCheck, Settings, Heart, History, LogOut, UserCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { User } from '../types';
@@ -67,7 +67,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
 
   const handleMenuAction = (path: string) => {
     setIsProfileOpen(false);
-    if (path === '/switch') { onToggleRole(); } else { navigate(path); }
+    navigate(path);
   };
 
   const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'U')}&background=0f172a&color=fff&size=128&bold=true`;
@@ -124,7 +124,6 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
           <div className="flex items-center gap-3 relative" ref={dropdownRef}>
             <div className="hidden md:flex flex-col items-end justify-center">
               <span className="text-sm font-semibold text-slate-800">{currentUser ? currentUser.name : '...'}</span>
-              {/* 🔥 REMOVED THE MODE TEXT HERE 🔥 */}
             </div>
 
             <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="relative hover:scale-105 transition-transform">
@@ -162,12 +161,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole, onToggleRole, onLogout }) => 
                   <ProfileMenuItem icon={<History size={16} />} label="Activity Log" onClick={() => handleMenuAction('/activity')} />
                   <ProfileMenuItem icon={<Settings size={16} />} label="Settings" onClick={() => handleMenuAction('/settings')} />
                   <div className="h-px my-1 bg-slate-100" />
-                  <ProfileMenuItem
-                    icon={<Repeat size={16} />}
-                    label="Switch Mode"
-                    onClick={() => handleMenuAction('/switch')}
-                    subLabel={userRole === 'RENTER' ? 'to Owner' : 'to Renter'}
-                  />
+                  {/* 🔥 Switch Mode Removed Here 🔥 */}
                   <ProfileMenuItem icon={<LogOut size={16} />} label="Log Out" variant="danger" onClick={handleLogout} />
                 </div>
               </motion.div>
